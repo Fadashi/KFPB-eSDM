@@ -7,6 +7,7 @@ import DropdownLink from '@/Components/DropdownLink.vue'
 // Mengambil data user dari Inertia shared props
 const user = usePage().props.auth.user
 const notifications = ref(3)
+const messages = ref(5)
 const showDropdown = ref(false)
 </script>
 
@@ -18,6 +19,11 @@ const showDropdown = ref(false)
     </div>
 
     <div class="right-items">
+      <div class="notification-icon">
+        <i class="fas fa-envelope"></i>
+        <span class="badge" v-if="messages">{{ messages }}</span>
+      </div>
+
       <div class="notification-icon">
         <i class="fas fa-bell"></i>
         <span class="badge" v-if="notifications">{{ notifications }}</span>
@@ -102,17 +108,34 @@ const showDropdown = ref(false)
 .notification-icon {
   position: relative;
   cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.notification-icon:hover {
+  background-color: #f5f5f5;
+}
+
+.notification-icon i {
+  font-size: 1.2rem;
+  color: #666;
 }
 
 .badge {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: 0;
+  right: 0;
   background: #ff4081;
   color: white;
   border-radius: 50%;
   padding: 2px 6px;
   font-size: 12px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .user-profile {
