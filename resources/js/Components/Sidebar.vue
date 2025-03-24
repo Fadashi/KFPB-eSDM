@@ -1,15 +1,37 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 
-const menuItems = ref([
-  { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
-  { icon: 'fas fa-user-clock', text: 'Absensi', route: 'attendance' },
-  { icon: 'fas fa-users', text: 'Karyawan', route: 'employees' },
-  { icon: 'fas fa-calendar-alt', text: 'Jadwal', route: 'schedule' },
-  { icon: 'fas fa-file-alt', text: 'Laporan', route: 'reports' },
-  { icon: 'fas fa-cog', text: 'Pengaturan', route: 'settings' },
-])
+const user = usePage().props.auth.user
+
+const menuItems = computed(() => {
+  switch (user.role) {
+    case 'admin':
+      return [
+        { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
+        { icon: 'fas fa-users', text: 'Karyawan', route: 'admin.employees' },
+        { icon: 'fas fa-user-clock', text: 'Absensi', route: 'admin.attendance' },
+        { icon: 'fas fa-file-alt', text: 'Laporan', route: 'admin.reports' },
+        { icon: 'fas fa-cog', text: 'Pengaturan', route: 'admin.settings' },
+      ]
+    case 'atasan':
+      return [
+        { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
+        { icon: 'fas fa-users', text: 'Tim Saya', route: 'atasan.team' },
+        { icon: 'fas fa-check-circle', text: 'Persetujuan', route: 'atasan.approvals' },
+        { icon: 'fas fa-file-alt', text: 'Laporan', route: 'atasan.reports' },
+      ]
+    case 'pegawai':
+      return [
+        { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
+        { icon: 'fas fa-user-clock', text: 'Absensi', route: 'pegawai.attendance' },
+        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Cuti', route: 'pegawai.leave-requests' },
+        { icon: 'fas fa-history', text: 'Riwayat', route: 'pegawai.history' },
+      ]
+    default:
+      return []
+  }
+})
 
 const isCollapsed = ref(false)
 
