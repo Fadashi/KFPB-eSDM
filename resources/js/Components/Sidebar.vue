@@ -1,33 +1,34 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-
-const route = useRoute()
+import { ref } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
 
 const menuItems = ref([
-  { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: '/dashboard' },
-  { icon: 'fas fa-user-clock', text: 'Absensi', route: '/attendance' },
-  { icon: 'fas fa-users', text: 'Karyawan', route: '/employees' },
-  { icon: 'fas fa-calendar-alt', text: 'Jadwal', route: '/schedule' },
-  { icon: 'fas fa-file-alt', text: 'Laporan', route: '/reports' },
-  { icon: 'fas fa-cog', text: 'Pengaturan', route: '/settings' },
+  { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
+  { icon: 'fas fa-user-clock', text: 'Absensi', route: 'attendance' },
+  { icon: 'fas fa-users', text: 'Karyawan', route: 'employees' },
+  { icon: 'fas fa-calendar-alt', text: 'Jadwal', route: 'schedule' },
+  { icon: 'fas fa-file-alt', text: 'Laporan', route: 'reports' },
+  { icon: 'fas fa-cog', text: 'Pengaturan', route: 'settings' },
 ])
 
 const isCollapsed = ref(false)
 
+const emit = defineEmits(['sidebar-toggle'])
+
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value
+  emit('sidebar-toggle', isCollapsed.value)
 }
 
-const isActiveRoute = (route) => {
-  return useRoute().path === route
+const isActiveRoute = (routeName) => {
+  return route().current(routeName)
 }
 </script>
 
 <template>
   <div class="sidebar" :class="{ collapsed: isCollapsed }">
     <div class="logo-container">
-      <a href="#" class="logo">Logo</a>
+      <Link :href="route('dashboard')" class="logo">Logo</Link>
       <h2 v-if="!isCollapsed">Admin Panel</h2>
     </div>
 
@@ -36,16 +37,16 @@ const isActiveRoute = (route) => {
     </button>
 
     <nav class="menu">
-      <router-link
+      <Link
         v-for="item in menuItems"
         :key="item.route"
-        :to="item.route"
+        :href="route(item.route)"
         class="menu-item"
         :class="{ active: isActiveRoute(item.route) }"
       >
         <i :class="item.icon"></i>
         <span v-if="!isCollapsed">{{ item.text }}</span>
-      </router-link>
+      </Link>
     </nav>
   </div>
 </template>
@@ -87,35 +88,36 @@ const isActiveRoute = (route) => {
   top: 70px;
   background: white;
   border: none;
-  border-radius: 50%;
   width: 24px;
   height: 24px;
+  border-radius: 50%;
+  color: #1a237e;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .menu {
-  margin-top: 20px;
+  padding: 20px 0;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 15px 20px;
+  padding: 12px 20px;
+  color: white;
   text-decoration: none;
-  color: rgba(255, 255, 255, 0.7);
-  gap: 15px;
+  gap: 10px;
   transition: all 0.3s ease;
-  position: relative;
 }
 
 .menu-item:hover {
-  color: white;
   background: rgba(255, 255, 255, 0.1);
 }
 
 .menu-item.active {
-  color: white;
   background: rgba(255, 255, 255, 0.2);
 }
 

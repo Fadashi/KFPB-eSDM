@@ -24,4 +24,30 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', function () {
+        return Inertia::render('Dashboard');
+    })->name('dashboard');
+    
+    Route::get('/attendance', function () {
+        return Inertia::render('Attendance');
+    })->name('attendance');
+    
+    Route::get('/employees', function () {
+        return Inertia::render('Employees');
+    })->name('employees');
+    
+    Route::get('/schedule', function () {
+        return Inertia::render('Schedule');
+    })->name('schedule');
+    
+    Route::get('/reports', function () {
+        return Inertia::render('Reports');
+    })->name('reports');
+    
+    Route::get('/settings', function () {
+        return Inertia::render('Settings');
+    })->name('settings');
+});
+
 require __DIR__.'/auth.php';
