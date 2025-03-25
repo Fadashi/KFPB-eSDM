@@ -32,31 +32,30 @@ const teamAttendance = ref([
       </h2>
     </template>
 
-    <div class="dashboard">
-      <!-- Tim Statistik -->
-      <div class="stats-container">
-        <div class="stat-card">
+    <div class="p-6 space-y-6">
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="bg-white p-6 rounded-lg shadow flex items-center gap-4">
           <i class="fas fa-users"></i>
           <div class="stat-info">
             <h3>Total Anggota Tim</h3>
             <p>{{ teamStats.totalMembers }}</p>
           </div>
         </div>
-        <div class="stat-card">
+        <div class="bg-white p-6 rounded-lg shadow flex items-center gap-4">
           <i class="fas fa-check-circle"></i>
           <div class="stat-info">
             <h3>Hadir Hari Ini</h3>
             <p>{{ teamStats.presentToday }}</p>
           </div>
         </div>
-        <div class="stat-card">
+        <div class="bg-white p-6 rounded-lg shadow flex items-center gap-4">
           <i class="fas fa-clock"></i>
           <div class="stat-info">
             <h3>Terlambat</h3>
             <p>{{ teamStats.late }}</p>
           </div>
         </div>
-        <div class="stat-card">
+        <div class="bg-white p-6 rounded-lg shadow flex items-center gap-4">
           <i class="fas fa-calendar-minus"></i>
           <div class="stat-info">
             <h3>Izin/Cuti</h3>
@@ -126,27 +125,5 @@ const teamAttendance = ref([
 </template>
 
 <style scoped>
-.dashboard {
-  @apply p-6 space-y-6;
-}
-
-.stats-container {
-  @apply grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4;
-}
-
-.stat-card {
-  @apply bg-white p-6 rounded-lg shadow flex items-center gap-4;
-}
-
-.stat-card i {
-  @apply text-3xl text-indigo-600;
-}
-
-.stat-info h3 {
-  @apply text-sm text-gray-600;
-}
-
-.stat-info p {
-  @apply text-2xl font-semibold text-gray-800;
-}
+/* Hapus definisi CSS manual dan gunakan kelas Tailwind langsung di template */
 </style>

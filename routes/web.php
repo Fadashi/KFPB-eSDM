@@ -3,6 +3,9 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Middleware;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -16,7 +19,8 @@ Route::get('/', function () {
 
 // Dashboard berdasarkan role
 Route::middleware(['auth', 'verified'])->get('/dashboard', function () {
-    $user = auth()->user();
+    $user = $user = Auth::user();
+
 
     if (!$user) {
         return redirect()->route('login');
@@ -49,6 +53,7 @@ Route::middleware(['auth', 'checkRole:admin'])->prefix('admin')->group(function 
     Route::get('/settings', function () {
         return Inertia::render('Admin/Settings');
     })->name('admin.settings');
+
 });
 
 // Routes untuk Atasan

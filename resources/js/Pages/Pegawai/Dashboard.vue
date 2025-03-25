@@ -41,7 +41,7 @@ const checkOut = () => {
       </h2>
     </template>
 
-    <div class="dashboard">
+    <div class="p-6 space-y-6">
       <!-- Absensi Hari Ini -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div class="bg-white p-6 rounded-lg shadow">
@@ -138,7 +138,5 @@ const checkOut = () => {
 </template>
 
 <style scoped>
-.dashboard {
-  @apply p-6 space-y-6;
-}
+/* Hapus definisi CSS manual dan gunakan kelas Tailwind langsung di template */
 </style>
