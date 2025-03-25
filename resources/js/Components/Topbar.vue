@@ -4,11 +4,17 @@ import { Link, usePage } from '@inertiajs/vue3'
 import Dropdown from '@/Components/Dropdown.vue'
 import DropdownLink from '@/Components/DropdownLink.vue'
 
-// Mengambil data user dari Inertia shared props
 const user = usePage().props.auth.user
 const notifications = ref(3)
 const messages = ref(5)
-const showDropdown = ref(false)
+const showNotifications = ref(false)
+
+// Contoh daftar notifikasi
+const notificationsList = ref([
+  { id: 1, text: 'Pesanan Anda telah dikonfirmasi', link: '#' },
+  { id: 2, text: 'Promo spesial hari ini! Cek sekarang.', link: '#' },
+  { id: 3, text: 'Peringatan: Saldo dompet digital Anda menipis.', link: '#' },
+])
 </script>
 
 <template>
@@ -19,14 +25,35 @@ const showDropdown = ref(false)
     </div>
 
     <div class="right-items">
-      <div class="notification-icon">
-        <i class="fas fa-envelope"></i>
-        <span class="badge" v-if="messages">{{ messages }}</span>
+      <!-- Notifikasi Pesan -->
+      <div class="relative">
+        <div class="notification-icon">
+          <i class="fas fa-envelope"></i>
+          <span class="badge" v-if="messages">{{ messages }}</span>
+        </div>
       </div>
 
-      <div class="notification-icon">
-        <i class="fas fa-bell"></i>
-        <span class="badge" v-if="notifications">{{ notifications }}</span>
+      <!-- Notifikasi dengan Dropdown -->
+      <div class="relative">
+        <div class="notification-icon" @click="showNotifications = !showNotifications">
+          <i class="fas fa-bell"></i>
+          <span class="badge" v-if="notifications">{{ notifications }}</span>
+        </div>
+
+        <!-- Dropdown Notifikasi -->
+        <div v-if="showNotifications" class="dropdown-menu">
+          <div v-if="notificationsList.length">
+            <DropdownLink
+              v-for="notif in notificationsList"
+              :key="notif.id"
+              :href="notif.link">
+              {{ notif.text }}
+            </DropdownLink>
+          </div>
+          <div v-else class="p-4 text-gray-500 text-sm">
+            Tidak ada notifikasi baru.
+          </div>
+        </div>
       </div>
 
       <!-- User Profile dengan Dropdown -->
@@ -34,9 +61,9 @@ const showDropdown = ref(false)
         <Dropdown align="right" width="48">
           <template #trigger>
             <div class="user-profile">
-              <img 
-                :src="user.profile_photo_url || 'https://ui-avatars.com/api/?name=' + user.name" 
-                :alt="user.name" 
+              <img
+                :src="user.profile_photo_url || 'https://ui-avatars.com/api/?name=' + user.name"
+                :alt="user.name"
               />
               <span>{{ user.name }}</span>
               <i class="fas fa-chevron-down ml-2 text-sm"></i>
@@ -55,10 +82,10 @@ const showDropdown = ref(false)
 
             <div class="border-t border-gray-200"></div>
 
-            <DropdownLink 
-              :href="route('logout')" 
-              method="post" 
-              as="button" 
+            <DropdownLink
+              :href="route('logout')"
+              method="post"
+              as="button"
               class="w-full text-left"
             >
               <i class="fas fa-sign-out-alt mr-2"></i>
@@ -111,6 +138,11 @@ const showDropdown = ref(false)
   padding: 8px;
   border-radius: 50%;
   transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
 }
 
 .notification-icon:hover {
@@ -118,24 +150,51 @@ const showDropdown = ref(false)
 }
 
 .notification-icon i {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   color: #666;
 }
 
 .badge {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 4px; /* Atur posisi vertikal */
+  right: 4px; /* Atur posisi horizontal */
   background: #ff4081;
   color: white;
   border-radius: 50%;
-  padding: 2px 6px;
+  padding: 4px 6px;
   font-size: 12px;
-  min-width: 18px;
-  height: 18px;
+  min-width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: bold;
+  transform: translate(50%, -50%);
+}
+
+/* Dropdown Notifikasi */
+.dropdown-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 250px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  z-index: 50;
+}
+
+.dropdown-menu a {
+  display: block;
+  padding: 10px 15px;
+  color: #333;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.dropdown-menu a:hover {
+  background: #f5f5f5;
 }
 
 .user-profile {
@@ -157,14 +216,5 @@ const showDropdown = ref(false)
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
-}
-
-/* Tambahan styling untuk dropdown items */
-:deep(.dropdown-content) {
-  @apply py-1 bg-white;
-}
-
-:deep(.dropdown-link) {
-  @apply flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100;
 }
 </style>

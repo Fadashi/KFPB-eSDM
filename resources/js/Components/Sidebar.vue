@@ -9,22 +9,22 @@ const menuItems = computed(() => {
     case 'admin':
       return [
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
-        { icon: 'fas fa-users', text: 'Karyawan', route: 'admin.employees' },
-        { icon: 'fas fa-cog', text: 'Pengaturan', route: 'admin.settings' },
+        { icon: 'fas fa-users', text: 'Karyawan', route: '#' },
+        { icon: 'fas fa-cog', text: 'Pengaturan', route: '#' },
       ]
     case 'atasan':
       return [
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
-        { icon: 'fas fa-users', text: 'Tim Saya', route: 'atasan.team' },
-        { icon: 'fas fa-check-circle', text: 'Persetujuan', route: 'atasan.approvals' },
-        { icon: 'fas fa-file-alt', text: 'Laporan', route: 'atasan.reports' },
+        { icon: 'fas fa-users', text: 'Tim Saya', route: '#' },
+        { icon: 'fas fa-check-circle', text: 'Persetujuan', route: '#' },
+        { icon: 'fas fa-file-alt', text: 'Laporan', route: '#' },
       ]
     case 'pegawai':
       return [
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
-        { icon: 'fas fa-user-clock', text: 'Absensi', route: 'pegawai.attendance' },
-        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Cuti', route: 'pegawai.leave-requests' },
-        { icon: 'fas fa-history', text: 'Riwayat', route: 'pegawai.history' },
+        { icon: 'fas fa-user-clock', text: 'Absensi', route: '#' },
+        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Cuti', route: '#' },
+        { icon: 'fas fa-history', text: 'Riwayat', route: '#' },
       ]
     default:
       return []
@@ -41,7 +41,7 @@ const toggleSidebar = () => {
 }
 
 const isActiveRoute = (routeName) => {
-  return route().current(routeName)
+  return routeName !== '#' && route().current(routeName)
 }
 </script>
 
@@ -53,14 +53,15 @@ const isActiveRoute = (routeName) => {
     </div>
 
     <button class="toggle-btn" @click="toggleSidebar">
-      <i :class="isCollapsed ? 'fas fa-angle-right' : 'fas fa-angle-left'"></i>
+      <i v-if="!isCollapsed" class="fas fa-angle-left"></i>
+      <i v-else class="fas fa-angle-right"></i>
     </button>
 
     <nav class="menu">
       <Link
         v-for="item in menuItems"
         :key="item.route"
-        :href="route(item.route)"
+        :href="item.route !== '#' ? route(item.route) : '#'"
         class="menu-item"
         :class="{ active: isActiveRoute(item.route) }"
       >
@@ -108,36 +109,43 @@ const isActiveRoute = (routeName) => {
   top: 70px;
   background: white;
   border: none;
-  width: 24px;
-  height: 24px;
   border-radius: 50%;
-  color: #1a237e;
+  width: 30px;
+  height: 30px;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.toggle-btn i {
+  font-size: 16px;
+  color: #1a237e;
+}
+
 .menu {
-  padding: 20px 0;
+  margin-top: 20px;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
-  color: white;
+  padding: 15px 20px;
   text-decoration: none;
-  gap: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  gap: 15px;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .menu-item:hover {
+  color: white;
   background: rgba(255, 255, 255, 0.1);
 }
 
 .menu-item.active {
+  color: white;
   background: rgba(255, 255, 255, 0.2);
 }
 
