@@ -4,8 +4,6 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use Inertia\Middleware;
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -17,19 +15,26 @@ Route::get('/', function () {
     ]);
 });
 
+// Debugging session
+Route::get('/debug-session', function () {
+    return response()->json([
+        'user' => Auth::user(),
+        'session' => session()->all()
+    ]);
+})->middleware('auth');
+
 // Dashboard berdasarkan role
 Route::middleware(['auth', 'verified'])->get('/dashboard', function () {
-    $user = $user = Auth::user();
-
+    $user = Auth::user();
 
     if (!$user) {
         return redirect()->route('login');
     }
 
-    return Inertia::render(match ($user->role) {
-        'admin' => 'Admin/Dashboard',
-        'atasan' => 'Atasan/Dashboard',
-        default => 'Pegawai/Dashboard',
+    return redirect()->route(match ($user->role) {
+        'admin' => 'admin.dashboard',
+        'atasan' => 'atasan.dashboard',
+        default => 'pegawai.dashboard',
     });
 })->name('dashboard');
 
@@ -41,20 +46,21 @@ Route::middleware('auth')->group(function () {
 });
 
 // Routes untuk Admin
-Route::middleware(['auth', 'checkRole:admin'])->prefix('admin')->group(function () {
-    Route::get('/dashboard', function () {
+Route::middleware(['auth'])->group(function () {
+    Route::get('/admin/dashboard', function () {
         return Inertia::render('Admin/Dashboard');
-    })->name('admin.dashboard');
+    })->middleware('checkRole:admin')->name('admin.dashboard');
 
-    Route::get('/employees', function () {
+    Route::get('/admin/employees', function () {
         return Inertia::render('Admin/Employees');
-    })->name('admin.employees');
+    })->middleware('checkRole:admin')->name('admin.employees');
 
-    Route::get('/settings', function () {
+    Route::get('/admin/settings', function () {
         return Inertia::render('Admin/Settings');
-    })->name('admin.settings');
-
+    })->middleware('checkRole:admin')->name('admin.settings');
 });
+
+
 
 // Routes untuk Atasan
 Route::middleware(['auth', 'checkRole:atasan'])->prefix('atasan')->group(function () {

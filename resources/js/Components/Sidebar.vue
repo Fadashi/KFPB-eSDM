@@ -9,8 +9,8 @@ const menuItems = computed(() => {
     case 'admin':
       return [
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
-        { icon: 'fas fa-users', text: 'Karyawan', route: '#' },
-        { icon: 'fas fa-cog', text: 'Pengaturan', route: '#' },
+        { icon: 'fas fa-users', text: 'Karyawan', route: 'admin.employees' },
+        { icon: 'fas fa-cog', text: 'Pengaturan', route: 'dashboard' },
       ]
     case 'atasan':
       return [

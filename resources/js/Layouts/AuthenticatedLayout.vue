@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import Topbar from '@/Components/Topbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
+import Footer from '@/Components/Footer.vue';
 
 const sidebarCollapsed = ref(false);
 
@@ -34,6 +35,9 @@ const handleSidebarCollapse = (isCollapsed) => {
           </div>
         </main>
       </div>
+
+      <!-- Footer -->
+      <Footer />
     </div>
   </div>
 </template>
