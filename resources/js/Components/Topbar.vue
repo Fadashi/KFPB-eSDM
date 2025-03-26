@@ -19,9 +19,8 @@ const notificationsList = ref([
 
 <template>
   <div class="topbar">
-    <div class="search-bar">
-      <i class="fas fa-search"></i>
-      <input type="text" placeholder="Cari..." />
+    <div class="logo">
+        <img src="/images/KF_Logo.png" alt="Logo Kimia Farma" width="100" height="40">
     </div>
 
     <div class="right-items">
@@ -109,21 +108,9 @@ const notificationsList = ref([
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.search-bar {
+.logo {
   display: flex;
   align-items: center;
-  background: #f5f5f5;
-  padding: 8px 15px;
-  border-radius: 20px;
-  width: 300px;
-}
-
-.search-bar input {
-  border: none;
-  background: none;
-  margin-left: 10px;
-  outline: none;
-  width: 100%;
 }
 
 .right-items {
