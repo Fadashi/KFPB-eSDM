@@ -51,9 +51,21 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('Admin/Dashboard');
     })->middleware('checkRole:admin')->name('admin.dashboard');
 
+    Route::get('/admin/references', function () {
+        return Inertia::render('Admin/References');
+    })->middleware('checkRole:admin')->name('admin.references');
+    
     Route::get('/admin/employees', function () {
         return Inertia::render('Admin/Employees');
     })->middleware('checkRole:admin')->name('admin.employees');
+
+    Route::get('/admin/attendance', function () {
+        return Inertia::render('Admin/Attendance');
+    })->middleware('checkRole:admin')->name('admin.attendance');
+    
+    Route::get('/admin/audit-trail', function () {
+        return Inertia::render('Admin/Audit-trail');
+    })->middleware('checkRole:admin')->name('admin.audit-trail');
 
     Route::get('/admin/settings', function () {
         return Inertia::render('Admin/Settings');

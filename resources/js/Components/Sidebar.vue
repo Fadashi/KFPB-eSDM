@@ -9,8 +9,11 @@ const menuItems = computed(() => {
     case 'admin':
       return [
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
+        { icon: 'fas fa-database', text: 'Referensi', route: 'admin.references' },
         { icon: 'fas fa-users', text: 'Karyawan', route: 'admin.employees' },
-        { icon: 'fas fa-cog', text: 'Pengaturan', route: 'dashboard' },
+        { icon: 'fas fa-clock', text: 'Absensi', route: 'admin.attendance' },
+        { icon: 'fas fa-book', text: 'Audit Trail', route: 'admin.audit-trail' },
+        { icon: 'fas fa-cog', text: 'Pengaturan', route: 'admin.settings' },
       ]
     case 'atasan':
       return [
