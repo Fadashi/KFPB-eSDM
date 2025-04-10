@@ -55,7 +55,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/references', function () {
         return Inertia::render('Admin/References');
     })->middleware('checkRole:admin')->name('admin.references');
-    
+
     //Karyawan
     Route::get('/admin/employees', function () {
         return Inertia::render('Admin/Karyawan/Employees');
@@ -85,6 +85,16 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/attendance', function () {
         return Inertia::render('Admin/Attendance');
     })->middleware('checkRole:admin')->name('admin.attendance');
+
+    //Pengumuman
+    Route::get('/admin/announcement', function () {
+        return Inertia::render('Admin/Announcement');
+    })->middleware('checkRole:admin')->name('admin.announcement');
+
+    //User Management
+    Route::get('/admin/users', function () {
+        return Inertia::render('Admin/Users');
+    })->middleware('checkRole:admin')->name('admin.users');
 
     //Audit Trail
     Route::get('/admin/audit-trail', function () {
