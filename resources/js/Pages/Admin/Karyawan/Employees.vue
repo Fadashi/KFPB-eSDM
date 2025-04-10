@@ -34,6 +34,39 @@ const divisions = ref([
 const selectedDivision = ref(null)
 const searchQuery = ref('')
 
+// Tambahan state untuk pagination
+const currentPage = ref(1);
+const itemsPerPage = 7; // Fixed items per page
+
+// Computed property untuk total items
+const totalItems = computed(() => {
+  return filteredEmployees.value.length;
+});
+
+// Computed property untuk total halaman
+const totalPages = computed(() => {
+  return Math.ceil(totalItems.value / itemsPerPage);
+});
+
+// Computed property untuk range items yang ditampilkan
+const displayedItemsRange = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage + 1;
+  const end = Math.min(currentPage.value * itemsPerPage, totalItems.value);
+  return `${start}-${end}`;
+});
+
+// Computed property untuk employees yang ditampilkan sesuai pagination
+const paginatedEmployees = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return filteredEmployees.value.slice(start, end);
+});
+
+// Fungsi untuk mengubah halaman
+const changePage = (page) => {
+  currentPage.value = page;
+};
+
 const filteredEmployees = computed(() => {
   if (!selectedDivision.value) return []
   if (!searchQuery.value) return selectedDivision.value.employees
@@ -139,7 +172,7 @@ const deleteEmployee = (employeeId) => {
             </thead>
             <tbody>
               <tr
-                v-for="employee in filteredEmployees"
+                v-for="employee in paginatedEmployees"
                 :key="employee.id"
                 class="border-b hover:bg-gray-50 transition duration-200"
               >
@@ -157,6 +190,53 @@ const deleteEmployee = (employeeId) => {
               </tr>
             </tbody>
           </table>
+
+          <!-- Pagination dan Info -->
+          <div class="mt-4 flex items-center justify-between border-t pt-4">
+            <div class="text-sm text-gray-700">
+              Menampilkan {{ displayedItemsRange }} dari {{ totalItems }} karyawan
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <button 
+                @click="changePage(currentPage - 1)" 
+                :disabled="currentPage === 1"
+                class="px-3 py-1 rounded border text-sm"
+                :class="currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100'"
+              >
+                <i class="fas fa-chevron-left"></i>
+              </button>
+
+              <template v-for="page in totalPages" :key="page">
+                <button 
+                  v-if="page === currentPage || 
+                        page === 1 || 
+                        page === totalPages || 
+                        (page >= currentPage - 1 && page <= currentPage + 1)"
+                  @click="changePage(page)"
+                  class="px-3 py-1 rounded text-sm"
+                  :class="currentPage === page ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'"
+                >
+                  {{ page }}
+                </button>
+                <span 
+                  v-else-if="page === currentPage - 2 || page === currentPage + 2" 
+                  class="text-gray-400"
+                >
+                  ...
+                </span>
+              </template>
+
+              <button 
+                @click="changePage(currentPage + 1)" 
+                :disabled="currentPage === totalPages"
+                class="px-3 py-1 rounded border text-sm"
+                :class="currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100'"
+              >
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
         </div>
         <div v-else class="text-center text-gray-500 py-10">
           <p>Pilih divisi untuk melihat daftar karyawan</p>

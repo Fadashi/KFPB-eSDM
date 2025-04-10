@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
@@ -35,6 +35,46 @@ const announcements = ref([
   },
 ]);
 
+// Tambahan state untuk pagination
+const currentPage = ref(1);
+const perPage = ref(10);
+const perPageOptions = [5, 10, 20, 50];
+
+// Computed property untuk total items
+const totalItems = computed(() => {
+  return announcements.value.length;
+});
+
+// Computed property untuk total halaman
+const totalPages = computed(() => {
+  return Math.ceil(announcements.value.length / perPage.value);
+});
+
+// Computed property untuk range items yang ditampilkan
+const displayedItemsRange = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value + 1;
+  const end = Math.min(currentPage.value * perPage.value, totalItems.value);
+  return `${start}-${end}`;
+});
+
+// Computed property untuk announcements yang ditampilkan sesuai pagination
+const paginatedAnnouncements = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value;
+  const end = start + perPage.value;
+  return announcements.value.slice(start, end);
+});
+
+// Fungsi untuk mengubah halaman
+const changePage = (page) => {
+  currentPage.value = page;
+};
+
+// Fungsi untuk mengubah jumlah item per halaman
+const changePerPage = (value) => {
+  perPage.value = parseInt(value);
+  currentPage.value = 1; // Reset ke halaman pertama
+};
+
 // Counter untuk id baru
 let nextId = 2;
 
@@ -61,7 +101,7 @@ const getStatus = (tanggal_berakhir) => {
   const endDate = new Date(tanggal_berakhir);
   today.setHours(0, 0, 0, 0);
   endDate.setHours(0, 0, 0, 0);
-  
+
   return endDate >= today ? 'aktif' : 'tidak aktif';
 };
 
@@ -81,19 +121,19 @@ const getStatusBadgeClass = (tanggal_berakhir) => {
 // Method untuk validasi form
 const validateForm = () => {
   const newErrors = {};
-  
+
   if (!formData.value.judul.trim()) {
     newErrors.judul = 'Judul pengumuman harus diisi';
   }
-  
+
   if (!formData.value.isi.trim()) {
     newErrors.isi = 'Isi pengumuman harus diisi';
   }
-  
+
   if (!formData.value.tanggal_mulai) {
     newErrors.tanggal_mulai = 'Tanggal mulai harus diisi';
   }
-  
+
   if (!formData.value.tanggal_berakhir) {
     newErrors.tanggal_berakhir = 'Tanggal berakhir harus diisi';
   } else if (formData.value.tanggal_mulai && formData.value.tanggal_berakhir) {
@@ -103,7 +143,7 @@ const validateForm = () => {
       newErrors.tanggal_berakhir = 'Tanggal berakhir tidak boleh kurang dari tanggal mulai';
     }
   }
-  
+
   errors.value = newErrors;
   return Object.keys(newErrors).length === 0;
 };
@@ -111,13 +151,13 @@ const validateForm = () => {
 // Method untuk handle submit form
 const handleSubmit = () => {
   if (isSubmitting.value) return;
-  
+
   if (!validateForm()) {
     return;
   }
-  
+
   isSubmitting.value = true;
-  
+
   try {
     // Simulasi delay network request
     setTimeout(() => {
@@ -126,12 +166,12 @@ const handleSubmit = () => {
         id: nextId++,
         ...formData.value
       };
-      
+
       announcements.value.unshift(newAnnouncement); // Tambah di awal array
-      
+
       // Tampilkan notifikasi sukses
       alert('Pengumuman berhasil ditambahkan!');
-      
+
       // Tutup modal dan reset form
       closeModal();
     }, 500); // Delay 500ms untuk simulasi loading
@@ -152,7 +192,7 @@ const deleteAnnouncement = (id) => {
       setTimeout(() => {
         // Hapus pengumuman dari array
         announcements.value = announcements.value.filter(item => item.id !== id);
-        
+
         // Tampilkan notifikasi sukses
         alert('Pengumuman berhasil dihapus!');
       }, 300);
@@ -171,10 +211,10 @@ const editAnnouncement = (announcement) => {
     tanggal_mulai: announcement.tanggal_mulai,
     tanggal_berakhir: announcement.tanggal_berakhir,
   };
-  
+
   // Simpan ID yang sedang diedit
   formData.value.id = announcement.id;
-  
+
   // Buka modal
   openModal();
 };
@@ -213,10 +253,10 @@ const formatDate = (dateString) => {
         </ol>
       </nav>
       <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-gray-900">Pengumuman</h1>
+        <h2 class="text-xl font-semibold leading-tight text-gray-800">Pengumuman</h2>
         <button
           @click="openModal"
-          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center text-sm font-medium"
         >
           <i class="fas fa-plus mr-2"></i> Tambah Pengumuman
         </button>
@@ -234,7 +274,7 @@ const formatDate = (dateString) => {
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="sm:flex sm:items-start">
               <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                <h3 class="text-lg font-medium leading-6 text-gray-900" id="modal-title">
                   Tambah Pengumuman Baru
                 </h3>
                 <div class="mt-4">
@@ -245,12 +285,12 @@ const formatDate = (dateString) => {
                         type="text"
                         id="judul"
                         v-model="formData.judul"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
                         :class="{ 'border-red-500': errors.judul }"
                         required
                         placeholder="Masukkan judul pengumuman"
                       >
-                      <p v-if="errors.judul" class="mt-1 text-sm text-red-600">{{ errors.judul }}</p>
+                      <p v-if="errors.judul" class="mt-1 text-xs text-red-600">{{ errors.judul }}</p>
                     </div>
                     <div>
                       <label for="isi" class="block text-sm font-medium text-gray-700">Isi Pengumuman</label>
@@ -258,12 +298,12 @@ const formatDate = (dateString) => {
                         id="isi"
                         v-model="formData.isi"
                         rows="6"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
                         :class="{ 'border-red-500': errors.isi }"
                         required
                         placeholder="Masukkan isi pengumuman"
                       ></textarea>
-                      <p v-if="errors.isi" class="mt-1 text-sm text-red-600">{{ errors.isi }}</p>
+                      <p v-if="errors.isi" class="mt-1 text-xs text-red-600">{{ errors.isi }}</p>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -272,11 +312,11 @@ const formatDate = (dateString) => {
                           type="date"
                           id="tanggal_mulai"
                           v-model="formData.tanggal_mulai"
-                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
                           :class="{ 'border-red-500': errors.tanggal_mulai }"
                           required
                         >
-                        <p v-if="errors.tanggal_mulai" class="mt-1 text-sm text-red-600">{{ errors.tanggal_mulai }}</p>
+                        <p v-if="errors.tanggal_mulai" class="mt-1 text-xs text-red-600">{{ errors.tanggal_mulai }}</p>
                       </div>
                       <div>
                         <label for="tanggal_berakhir" class="block text-sm font-medium text-gray-700">Tanggal Berakhir</label>
@@ -284,11 +324,11 @@ const formatDate = (dateString) => {
                           type="date"
                           id="tanggal_berakhir"
                           v-model="formData.tanggal_berakhir"
-                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
                           :class="{ 'border-red-500': errors.tanggal_berakhir }"
                           required
                         >
-                        <p v-if="errors.tanggal_berakhir" class="mt-1 text-sm text-red-600">{{ errors.tanggal_berakhir }}</p>
+                        <p v-if="errors.tanggal_berakhir" class="mt-1 text-xs text-red-600">{{ errors.tanggal_berakhir }}</p>
                       </div>
                     </div>
                   </form>
@@ -323,69 +363,146 @@ const formatDate = (dateString) => {
     </div>
 
     <!-- Tabel Daftar Pengumuman -->
-    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-      <div class="bg-white rounded-lg shadow-md">
-        <div class="p-6">
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">No</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Judul</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Isi</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Tanggal Mulai</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Tanggal Berakhir</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Status</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Aksi</th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="(announcement, index) in announcements" :key="announcement.id">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ index + 1 }}</td>
-                  <td class="px-6 py-4">
-                    <div class="text-sm font-medium text-gray-900">{{ truncateText(announcement.judul, 30) }}</div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="text-sm text-gray-900">{{ truncateText(announcement.isi, 50) }}</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(announcement.tanggal_mulai) }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(announcement.tanggal_berakhir) }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span :class="['px-2 inline-flex text-xs leading-5 font-semibold rounded-full', getStatusBadgeClass(announcement.tanggal_berakhir)]">
-                      {{ getStatus(announcement.tanggal_berakhir) }}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    <div class="flex space-x-2">
-                      <button
-                        @click="editAnnouncement(announcement)"
-                        class="text-blue-600 hover:text-blue-800 transition-colors duration-200"
-                        title="Edit Pengumuman"
-                      >
-                        <i class="fas fa-edit"></i>
-                      </button>
-                      <button
-                        @click="deleteAnnouncement(announcement.id)"
-                        class="text-red-600 hover:text-red-800 transition-colors duration-200"
-                        title="Hapus Pengumuman"
-                      >
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                <!-- Tampilkan pesan jika tidak ada data -->
-                <tr v-if="announcements.length === 0">
-                  <td colspan="7" class="px-6 py-4 text-center text-gray-500">
-                    Tidak ada pengumuman yang tersedia
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+    <div class="p-6">
+  <div class="bg-white rounded-lg shadow">
+    <div class="p-6">
+      <h2 class="text-lg font-semibold mb-4">Daftar Pengumuman</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full border-collapse">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="p-2 text-left">No</th>
+              <th class="p-2 text-left">Judul</th>
+              <th class="p-2 text-left">Isi</th>
+              <th class="p-2 text-left">Tanggal Mulai</th>
+              <th class="p-2 text-left">Tanggal Berakhir</th>
+              <th class="p-2 text-left">Status</th>
+              <th class="p-2 text-left">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(announcement, index) in paginatedAnnouncements"
+              :key="announcement.id"
+              class="border-b hover:bg-gray-50 transition duration-200"
+            >
+              <td class="p-2 text-sm">{{ index + 1 }}</td>
+              <td class="p-2">
+                <div class="text-sm font-medium text-gray-900">
+                  {{ truncateText(announcement.judul, 30) }}
+                </div>
+              </td>
+              <td class="p-2">
+                <div class="text-sm text-gray-500">
+                  {{ truncateText(announcement.isi, 50) }}
+                </div>
+              </td>
+              <td class="p-2 text-sm text-gray-500">
+                {{ formatDate(announcement.tanggal_mulai) }}
+              </td>
+              <td class="p-2 text-sm text-gray-500">
+                {{ formatDate(announcement.tanggal_berakhir) }}
+              </td>
+              <td class="p-2">
+                <span
+                  :class="[
+                    'px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full',
+                    getStatusBadgeClass(announcement.tanggal_berakhir)
+                  ]"
+                >
+                  {{ getStatus(announcement.tanggal_berakhir) }}
+                </span>
+              </td>
+              <td class="p-2">
+                <div class="flex gap-2">
+                  <button
+                    @click="editAnnouncement(announcement)"
+                    class="text-blue-500 hover:text-blue-700 flex items-center transition duration-200 text-sm font-medium"
+                  >
+                    <i class="fas fa-edit mr-1"></i> Edit
+                  </button>
+                  <button
+                    @click="deleteAnnouncement(announcement.id)"
+                    class="text-red-500 hover:text-red-700 flex items-center transition duration-200 text-sm font-medium"
+                  >
+                    <i class="fas fa-trash mr-1"></i> Hapus
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="paginatedAnnouncements.length === 0">
+              <td colspan="7" class="p-2 text-center text-sm text-gray-500">
+                Tidak ada pengumuman yang tersedia
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="mt-4 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-sm text-gray-700">Tampilkan</span>
+          <div class="relative">
+            <select 
+              :value="perPage"
+              @change="changePerPage($event.target.value)"
+              class="border rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none pr-8 cursor-pointer"
+            >
+              <option v-for="option in perPageOptions" :key="option" :value="option" class="py-1">
+                {{ option }}
+              </option>
+            </select>
           </div>
+          <span class="text-sm text-gray-700">
+            item per halaman | Menampilkan {{ displayedItemsRange }} dari {{ totalItems }} item
+          </span>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button 
+            @click="changePage(currentPage - 1)" 
+            :disabled="currentPage === 1"
+            class="px-3 py-1 rounded border text-sm"
+            :class="currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100'"
+          >
+            <i class="fas fa-chevron-left"></i>
+          </button>
+
+          <template v-for="page in totalPages" :key="page">
+            <button 
+              v-if="page === currentPage || 
+                    page === 1 || 
+                    page === totalPages || 
+                    (page >= currentPage - 1 && page <= currentPage + 1)"
+              @click="changePage(page)"
+              class="px-3 py-1 rounded text-sm"
+              :class="currentPage === page ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'"
+            >
+              {{ page }}
+            </button>
+            <span 
+              v-else-if="page === currentPage - 2 || page === currentPage + 2" 
+              class="text-gray-400"
+            >
+              ...
+            </span>
+          </template>
+
+          <button 
+            @click="changePage(currentPage + 1)" 
+            :disabled="currentPage === totalPages"
+            class="px-3 py-1 rounded border text-sm"
+            :class="currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100'"
+          >
+            <i class="fas fa-chevron-right"></i>
+          </button>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
   </AuthenticatedLayout>
 </template>
 

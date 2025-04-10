@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { Line } from 'vue-chartjs';
 import Sidebar from '@/Components/Sidebar.vue';
@@ -88,12 +88,23 @@ const employees = ref([
 const activeFilter = ref('hadir');
 const filteredEmployees = ref([]);
 
+// Tambahan state untuk pagination
+const currentPage = ref(1);
+const perPage = ref(10);
+const perPageOptions = [5, 10, 20, 50];
+
 // Data dummy untuk setiap kategori
 const attendanceData = {
   hadir: [
     { id: 1, name: 'Budi Santoso', position: 'Frontend Developer', email: 'budi@example.com', time: '08:00' },
     { id: 2, name: 'Dedi Kurniawan', position: 'Backend Developer', email: 'dedi@example.com', time: '08:05' },
     { id: 3, name: 'Rini Susanti', position: 'UI/UX Designer', email: 'rini@example.com', time: '07:55' },
+    // Menambah data dummy untuk testing pagination
+    { id: 8, name: 'Eko Prasetyo', position: 'Frontend Developer', email: 'eko@example.com', time: '08:02' },
+    { id: 9, name: 'Nina Wati', position: 'Backend Developer', email: 'nina@example.com', time: '08:07' },
+    { id: 10, name: 'Hadi Sutrisno', position: 'UI/UX Designer', email: 'hadi@example.com', time: '07:58' },
+    { id: 11, name: 'Maya Sari', position: 'Frontend Developer', email: 'maya@example.com', time: '08:01' },
+    { id: 12, name: 'Tono Widodo', position: 'Backend Developer', email: 'tono@example.com', time: '08:03' },
   ],
   izin: [
     { id: 4, name: 'Ahmad Fauzi', position: 'Project Manager', email: 'ahmad@example.com', reason: 'Cuti Tahunan' },
@@ -108,7 +119,45 @@ const attendanceData = {
 // Fungsi untuk mengubah filter
 const setFilter = (filter) => {
   activeFilter.value = filter;
-  filteredEmployees.value = attendanceData[filter];
+  currentPage.value = 1; // Reset halaman ke 1 saat ganti filter
+  updateFilteredEmployees();
+};
+
+// Fungsi untuk mengupdate data yang ditampilkan
+const updateFilteredEmployees = () => {
+  const startIndex = (currentPage.value - 1) * perPage.value;
+  const endIndex = startIndex + perPage.value;
+  filteredEmployees.value = attendanceData[activeFilter.value].slice(startIndex, endIndex);
+};
+
+// Computed property untuk total halaman
+const totalPages = computed(() => {
+  return Math.ceil(attendanceData[activeFilter.value].length / perPage.value);
+});
+
+// Computed property untuk total items
+const totalItems = computed(() => {
+  return attendanceData[activeFilter.value].length;
+});
+
+// Computed property untuk range items yang ditampilkan
+const displayedItemsRange = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value + 1;
+  const end = Math.min(currentPage.value * perPage.value, totalItems.value);
+  return `${start}-${end}`;
+});
+
+// Fungsi untuk mengubah halaman
+const changePage = (page) => {
+  currentPage.value = page;
+  updateFilteredEmployees();
+};
+
+// Fungsi untuk mengubah jumlah item per halaman
+const changePerPage = (value) => {
+  perPage.value = parseInt(value);
+  currentPage.value = 1; // Reset ke halaman pertama
+  updateFilteredEmployees();
 };
 
 // Inisialisasi data awal
@@ -254,6 +303,67 @@ setFilter('hadir');
               </tr>
             </tbody>
           </table>
+
+          <!-- Pagination Controls -->
+          <div class="mt-4 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-sm text-gray-700">Tampilkan</span>
+              <div class="relative">
+                <select 
+                  :value="perPage"
+                  @change="changePerPage($event.target.value)"
+                  class="border rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none pr-8 cursor-pointer"
+                >
+                  <option v-for="option in perPageOptions" :key="option" :value="option" class="py-1">
+                    {{ option }}
+                  </option>
+                </select>
+              </div>
+              <span class="text-sm text-gray-700">
+                item per halaman | Menampilkan {{ displayedItemsRange }} dari {{ totalItems }} item
+              </span>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <button 
+                @click="changePage(currentPage - 1)" 
+                :disabled="currentPage === 1"
+                class="px-3 py-1 rounded border text-sm"
+                :class="currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100'"
+              >
+                <i class="fas fa-chevron-left"></i>
+              </button>
+
+              <template v-for="page in totalPages" :key="page">
+                <button 
+                  v-if="page === currentPage || 
+                        page === 1 || 
+                        page === totalPages || 
+                        (page >= currentPage - 1 && page <= currentPage + 1)"
+                  @click="changePage(page)"
+                  class="px-3 py-1 rounded text-sm"
+                  :class="currentPage === page ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'"
+                >
+                  {{ page }}
+                </button>
+                <span 
+                  v-else-if="page === currentPage - 2 || page === currentPage + 2" 
+                  class="text-gray-400"
+                >
+                  ...
+                </span>
+              </template>
+
+              <button 
+                @click="changePage(currentPage + 1)" 
+                :disabled="currentPage === totalPages"
+                class="px-3 py-1 rounded border text-sm"
+                :class="currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100'"
+              >
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       
