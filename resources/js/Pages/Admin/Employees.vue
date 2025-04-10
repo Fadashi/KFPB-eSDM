@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
@@ -38,6 +38,20 @@ const formData = ref({ id: null, name: '', position: '', email: '' })
 
 const showConfirmModal = ref(false)
 const employeeToDelete = ref(null)
+
+const searchQuery = ref('')
+
+const filteredEmployees = computed(() => {
+  if (!selectedDivision.value) return []
+  if (!searchQuery.value) return selectedDivision.value.employees
+
+  const query = searchQuery.value.toLowerCase()
+  return selectedDivision.value.employees.filter(employee => 
+    employee.name.toLowerCase().includes(query) ||
+    employee.position.toLowerCase().includes(query) ||
+    employee.email.toLowerCase().includes(query)
+  )
+})
 
 const selectDivision = (division) => selectedDivision.value = division
 const openAddModal = () => {
@@ -105,9 +119,20 @@ const handleSubmit = () => {
         <div v-if="selectedDivision">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold">{{ selectedDivision.name }}</h2>
-            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center" @click="openAddModal">
-              <i class="fas fa-plus mr-2"></i> Tambah Karyawan
-            </button>
+            <div class="flex items-center gap-4">
+              <div class="relative">
+                <input
+                  type="text"
+                  v-model="searchQuery"
+                  placeholder="Cari karyawan..."
+                  class="pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <i class="fas fa-search absolute right-3 top-2.5 text-gray-400"></i>
+              </div>
+              <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center" @click="openAddModal">
+                <i class="fas fa-plus mr-2"></i> Tambah Karyawan
+              </button>
+            </div>
           </div>
 
           <table class="w-full text-sm text-left border-collapse">
@@ -121,7 +146,7 @@ const handleSubmit = () => {
             </thead>
             <tbody>
               <tr
-                v-for="employee in selectedDivision.employees"
+                v-for="employee in filteredEmployees"
                 :key="employee.id"
                 class="border-b hover:bg-gray-50 transition duration-200"
               >
