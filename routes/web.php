@@ -56,8 +56,23 @@ Route::middleware(['auth'])->group(function () {
     })->middleware('checkRole:admin')->name('admin.references');
     
     Route::get('/admin/employees', function () {
-        return Inertia::render('Admin/Employees');
+        return Inertia::render('Admin/Karyawan/Employees');
     })->middleware('checkRole:admin')->name('admin.employees');
+
+    Route::get('/admin/employees/create', function () {
+        return Inertia::render('Admin/Karyawan/AddEmployees');
+    })->middleware('checkRole:admin')->name('admin.employees.create');
+
+    Route::post('/admin/employees/store', function () {
+        // Logic untuk menyimpan data karyawan
+        return redirect()->route('admin.employees');
+    })->middleware('checkRole:admin')->name('admin.employees.store');
+
+    Route::get('/admin/employees/{id}/edit', function ($id) {
+        return Inertia::render('Admin/Karyawan/EditEmployees', [
+            'employeeId' => $id
+        ]);
+    })->middleware('checkRole:admin')->name('admin.employees.edit');
 
     Route::get('/admin/attendance', function () {
         return Inertia::render('Admin/Attendance');
