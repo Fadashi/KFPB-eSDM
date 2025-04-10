@@ -48,13 +48,19 @@ const chartData = {
       label: 'Kehadiran',
       backgroundColor: '#4CAF50',
       borderColor: '#4CAF50',
-      data: [95, 93, 97, 94, 96],
+      data: [45, 43, 47, 44, 46],
     },
     {
       label: 'Keterlambatan',
       backgroundColor: '#FFC107',
       borderColor: '#FFC107',
       data: [5, 7, 3, 6, 4],
+    },
+    {
+      label: 'Cuti/Izin',
+      backgroundColor: '#2196F3',
+      borderColor: '#2196F3',
+      data: [3, 2, 4, 1, 2],
     },
   ],
 };
@@ -78,13 +84,35 @@ const employees = ref([
   { id: 3, name: 'Rini Susanti', position: 'UI/UX Designer', email: 'rini@example.com' },
 ]);
 
-const openEditModal = (employee) => {
-  // Logic to open edit modal
+// State untuk filter dan data
+const activeFilter = ref('hadir');
+const filteredEmployees = ref([]);
+
+// Data dummy untuk setiap kategori
+const attendanceData = {
+  hadir: [
+    { id: 1, name: 'Budi Santoso', position: 'Frontend Developer', email: 'budi@example.com', time: '08:00' },
+    { id: 2, name: 'Dedi Kurniawan', position: 'Backend Developer', email: 'dedi@example.com', time: '08:05' },
+    { id: 3, name: 'Rini Susanti', position: 'UI/UX Designer', email: 'rini@example.com', time: '07:55' },
+  ],
+  izin: [
+    { id: 4, name: 'Ahmad Fauzi', position: 'Project Manager', email: 'ahmad@example.com', reason: 'Cuti Tahunan' },
+    { id: 5, name: 'Siti Rahayu', position: 'HR Manager', email: 'siti@example.com', reason: 'Izin Pribadi' },
+  ],
+  terlambat: [
+    { id: 6, name: 'Joko Widodo', position: 'System Analyst', email: 'joko@example.com', time: '09:15' },
+    { id: 7, name: 'Dewi Lestari', position: 'QA Engineer', email: 'dewi@example.com', time: '09:30' },
+  ],
 };
 
-const deleteEmployee = (employeeId) => {
-  // Logic to delete employee
+// Fungsi untuk mengubah filter
+const setFilter = (filter) => {
+  activeFilter.value = filter;
+  filteredEmployees.value = attendanceData[filter];
 };
+
+// Inisialisasi data awal
+setFilter('hadir');
 </script>
 
 <template>
@@ -153,35 +181,82 @@ const deleteEmployee = (employeeId) => {
         </div>
       </div>
 
-      <!-- Tabel Karyawan -->
+      <!-- Filter dan Tabel Kehadiran -->
       <div class="bg-white p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold mb-4">Daftar Karyawan</h2>
-        <table class="min-w-full border-collapse">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="p-2 text-left">Nama</th>
-              <th class="p-2 text-left">Posisi</th>
-              <th class="p-2 text-left">Email</th>
-              <th class="p-2">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="employee in employees" :key="employee.id" class="border-b hover:bg-gray-50 transition duration-200">
-              <td class="p-2">{{ employee.name }}</td>
-              <td class="p-2">{{ employee.position }}</td>
-              <td class="p-2">{{ employee.email }}</td>
-              <td class="p-2 flex gap-2">
-                <button class="text-blue-500 flex items-center" @click="openEditModal(employee)">
-                  <i class="fas fa-edit mr-1"></i> Edit
-                </button>
-                <button class="text-red-500 flex items-center" @click="deleteEmployee(employee.id)">
-                  <i class="fas fa-trash mr-1"></i> Hapus
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="flex space-x-4 mb-6">
+          <button 
+            @click="setFilter('hadir')"
+            :class="[
+              'flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200',
+              activeFilter === 'hadir' 
+                ? 'bg-green-500 text-white shadow-md' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            ]"
+          >
+            <i class="fas fa-check-circle mr-2"></i>
+            Hadir
+          </button>
+          <button 
+            @click="setFilter('izin')"
+            :class="[
+              'flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200',
+              activeFilter === 'izin' 
+                ? 'bg-blue-500 text-white shadow-md' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            ]"
+          >
+            <i class="fas fa-calendar-minus mr-2"></i>
+            Izin/Cuti
+          </button>
+          <button 
+            @click="setFilter('terlambat')"
+            :class="[
+              'flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200',
+              activeFilter === 'terlambat' 
+                ? 'bg-yellow-500 text-white shadow-md' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            ]"
+          >
+            <i class="fas fa-clock mr-2"></i>
+            Terlambat
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full border-collapse">
+            <thead>
+              <tr class="bg-gray-100">
+                <th class="p-2 text-left">Nama</th>
+                <th class="p-2 text-left">Posisi</th>
+                <th class="p-2 text-left">Email</th>
+                <th v-if="activeFilter === 'hadir' || activeFilter === 'terlambat'" class="p-2 text-left">Waktu</th>
+                <th v-if="activeFilter === 'izin'" class="p-2 text-left">Alasan</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="employee in filteredEmployees" :key="employee.id" class="border-b hover:bg-gray-50 transition duration-200">
+                <td class="p-2">{{ employee.name }}</td>
+                <td class="p-2">{{ employee.position }}</td>
+                <td class="p-2">{{ employee.email }}</td>
+                <td v-if="activeFilter === 'hadir' || activeFilter === 'terlambat'" class="p-2">
+                  <span :class="[
+                    'px-2 py-1 rounded-full text-xs font-medium',
+                    activeFilter === 'hadir' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  ]">
+                    {{ employee.time }}
+                  </span>
+                </td>
+                <td v-if="activeFilter === 'izin'" class="p-2">
+                  <span class="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ employee.reason }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+      
     </div>
   </AuthenticatedLayout>
 </template>

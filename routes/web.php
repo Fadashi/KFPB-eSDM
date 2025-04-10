@@ -47,6 +47,7 @@ Route::middleware('auth')->group(function () {
 
 // Routes untuk Admin
 Route::middleware(['auth'])->group(function () {
+    //Dashboard
     Route::get('/admin/dashboard', function () {
         return Inertia::render('Admin/Dashboard');
     })->middleware('checkRole:admin')->name('admin.dashboard');
@@ -55,6 +56,7 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('Admin/References');
     })->middleware('checkRole:admin')->name('admin.references');
     
+    //Karyawan
     Route::get('/admin/employees', function () {
         return Inertia::render('Admin/Karyawan/Employees');
     })->middleware('checkRole:admin')->name('admin.employees');
@@ -74,14 +76,22 @@ Route::middleware(['auth'])->group(function () {
         ]);
     })->middleware('checkRole:admin')->name('admin.employees.edit');
 
+    //Laporan
+    Route::get('/admin/report', function () {
+        return Inertia::render('Admin/Report');
+    })->middleware('checkRole:admin')->name('admin.report');
+
+    //Absensi
     Route::get('/admin/attendance', function () {
         return Inertia::render('Admin/Attendance');
     })->middleware('checkRole:admin')->name('admin.attendance');
-    
+
+    //Audit Trail
     Route::get('/admin/audit-trail', function () {
         return Inertia::render('Admin/Audit-trail');
-    })->middleware('checkRole:admin')->name('admin.audit-trail');
+        })->middleware('checkRole:admin')->name('admin.audit-trail');
 
+    //Pengaturan
     Route::get('/admin/settings', function () {
         return Inertia::render('Admin/Settings');
     })->middleware('checkRole:admin')->name('admin.settings');

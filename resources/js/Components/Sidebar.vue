@@ -12,6 +12,7 @@ const menuItems = computed(() => {
         { icon: 'fas fa-database', text: 'Referensi', route: 'admin.references' },
         { icon: 'fas fa-users', text: 'Karyawan', route: 'admin.employees' },
         { icon: 'fas fa-clock', text: 'Absensi', route: 'admin.attendance' },
+        { icon: 'fas fa-file', text: 'Laporan', route: 'admin.report' },
         { icon: 'fas fa-book', text: 'Audit Trail', route: 'admin.audit-trail' },
         { icon: 'fas fa-cog', text: 'Pengaturan', route: 'admin.settings' },
       ]
