@@ -35,6 +35,69 @@ const handleSidebarCollapse = (isCollapsed) => {
             </div>
         </template>
 
+        <div class="py-12">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Card Laporan Absensi -->
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900">Laporan Absensi</h3>
+                                    <p class="text-sm text-gray-500 mt-1">Lihat laporan kehadiran karyawan</p>
+                                </div>
+                                <div class="bg-blue-100 p-3 rounded-full">
+                                    <i class="fas fa-calendar-check text-blue-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <a href="#" class="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800">
+                                Lihat Laporan
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Card Laporan Cuti/Izin -->
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900">Laporan Cuti/Izin</h3>
+                                    <p class="text-sm text-gray-500 mt-1">Lihat laporan cuti dan izin karyawan</p>
+                                </div>
+                                <div class="bg-green-100 p-3 rounded-full">
+                                    <i class="fas fa-calendar-times text-green-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <a href="#" class="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800">
+                                Lihat Laporan
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Card Laporan Lembur -->
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900">Laporan Lembur</h3>
+                                    <p class="text-sm text-gray-500 mt-1">Lihat laporan jam lembur karyawan</p>
+                                </div>
+                                <div class="bg-yellow-100 p-3 rounded-full">
+                                    <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <a href="#" class="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800">
+                                Lihat Laporan
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
   </AuthenticatedLayout>
 </template>
 
