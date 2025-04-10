@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import { Line } from 'vue-chartjs';
+import { Line, Pie } from 'vue-chartjs';
 import Sidebar from '@/Components/Sidebar.vue';
 import Topbar from '@/Components/Topbar.vue';
 import {
@@ -12,7 +12,8 @@ import {
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ArcElement,
 } from 'chart.js';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
@@ -24,24 +25,27 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ArcElement
 );
 
 const sidebarCollapsed = ref(false);
-const handleSidebarCollapse = (isCollapsed) => {
-  sidebarCollapsed.value = isCollapsed;
-};
 
 // Data statistik
 const statistics = ref({
   totalEmployees: 50,
+  totalDepartments: 8,
+  totalSubDepartments: 15,
   presentToday: 45,
   late: 2,
-  onLeave: 3
+  onLeave: 3,
+  pendingLeaveRequests: 5,
+  activeProjects: 12,
+  upcomingEvents: 3
 });
 
-// Data untuk grafik
-const chartData = {
+// Data untuk grafik kehadiran
+const attendanceChartData = {
   labels: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'],
   datasets: [
     {
@@ -59,6 +63,15 @@ const chartData = {
   ],
 };
 
+// Data untuk grafik departemen
+const departmentChartData = {
+  labels: ['IT', 'HR', 'Finance', 'Marketing', 'Operations'],
+  datasets: [{
+    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
+    data: [12, 8, 6, 10, 14]
+  }]
+};
+
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -71,19 +84,25 @@ const recentActivities = ref([
   { id: 3, type: 'attendance', message: '45 karyawan telah melakukan absensi', time: '30 menit yang lalu' },
 ]);
 
-// Dummy data for employees
-const employees = ref([
-  { id: 1, name: 'Budi Santoso', position: 'Frontend Developer', email: 'budi@example.com' },
-  { id: 2, name: 'Dedi Kurniawan', position: 'Backend Developer', email: 'dedi@example.com' },
-  { id: 3, name: 'Rini Susanti', position: 'UI/UX Designer', email: 'rini@example.com' },
+// Data cuti
+const leaveRequests = ref([
+  { id: 1, employee: 'Ani Wijaya', type: 'Cuti Tahunan', startDate: '2024-03-20', endDate: '2024-03-22', status: 'Pending' },
+  { id: 2, employee: 'Budi Santoso', type: 'Sakit', startDate: '2024-03-19', endDate: '2024-03-19', status: 'Approved' },
 ]);
 
-const openEditModal = (employee) => {
-  // Logic to open edit modal
+// Data pengumuman
+const announcements = ref([
+  { id: 1, title: 'Rapat Bulanan', content: 'Rapat bulanan akan diadakan pada tanggal 25 Maret 2024', date: '2024-03-18' },
+  { id: 2, title: 'Training React', content: 'Training React untuk tim frontend dijadwalkan minggu depan', date: '2024-03-17' },
+]);
+
+
+const approveLeave = (requestId) => {
+  // Logic to approve leave
 };
 
-const deleteEmployee = (employeeId) => {
-  // Logic to delete employee
+const rejectLeave = (requestId) => {
+  // Logic to reject leave
 };
 </script>
 
@@ -95,74 +114,116 @@ const deleteEmployee = (employeeId) => {
       <h2 class="text-xl font-semibold leading-tight text-gray-800">Admin Dashboard</h2>
     </template>
 
-    <div class="p-6 space-y-6">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white p-6 rounded-lg shadow flex items-center gap-4">
-          <i class="text-3xl text-indigo-600 fas fa-users"></i>
-          <div>
-            <h3 class="text-sm text-gray-600">Total Karyawan</h3>
-            <p class="text-2xl font-semibold text-gray-800">{{ statistics.totalEmployees }}</p>
+    <div class="p-6 space-y-8">
+      <!-- Statistik Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <i class="fas fa-users text-3xl text-indigo-600"></i>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Total Karyawan</p>
+              <p class="text-2xl font-semibold">{{ statistics.totalEmployees }}</p>
+            </div>
           </div>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow flex items-center gap-4">
-          <i class="text-3xl text-indigo-600 fas fa-check-circle"></i>
-          <div>
-            <h3 class="text-sm text-gray-600">Hadir Hari Ini</h3>
-            <p class="text-2xl font-semibold text-gray-800">{{ statistics.presentToday }}</p>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <i class="fas fa-building text-3xl text-green-600"></i>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Bagian</p>
+              <p class="text-2xl font-semibold">{{ statistics.totalDepartments }}</p>
+            </div>
           </div>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow flex items-center gap-4">
-          <i class="text-3xl text-indigo-600 fas fa-clock"></i>
-          <div>
-            <h3 class="text-sm text-gray-600">Terlambat</h3>
-            <p class="text-2xl font-semibold text-gray-800">{{ statistics.late }}</p>
-          </div>
-        </div>
-        <div class="bg-white p-6 rounded-lg shadow flex items-center gap-4">
-          <i class="text-3xl text-indigo-600 fas fa-calendar-minus"></i>
-          <div>
-            <h3 class="text-sm text-gray-600">Izin/Cuti</h3>
-            <p class="text-2xl font-semibold text-gray-800">{{ statistics.onLeave }}</p>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <i class="fas fa-sitemap text-3xl text-blue-600"></i>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Sub Bagian</p>
+              <p class="text-2xl font-semibold">{{ statistics.totalSubDepartments }}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Grafik Kehadiran -->
-      <div class="bg-white p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold mb-4">Grafik Kehadiran Minggu Ini</h2>
-        <div class="h-80">
-          <Line :data="chartData" :options="chartOptions" />
+      <!-- Grafik Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h3 class="text-lg font-semibold mb-4">Kehadiran Mingguan</h3>
+          <div class="h-64">
+            <Line :data="attendanceChartData" :options="chartOptions" />
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h3 class="text-lg font-semibold mb-4">Distribusi Departemen</h3>
+          <div class="h-64">
+            <Pie :data="departmentChartData" :options="chartOptions" />
+          </div>
         </div>
       </div>
 
-      <!-- Tabel Karyawan -->
+      <!-- Pengajuan Cuti Terbaru -->
       <div class="bg-white p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold mb-4">Daftar Karyawan</h2>
-        <table class="min-w-full border-collapse">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="p-2 text-left">Nama</th>
-              <th class="p-2 text-left">Posisi</th>
-              <th class="p-2 text-left">Email</th>
-              <th class="p-2">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="employee in employees" :key="employee.id" class="border-b hover:bg-gray-50 transition duration-200">
-              <td class="p-2">{{ employee.name }}</td>
-              <td class="p-2">{{ employee.position }}</td>
-              <td class="p-2">{{ employee.email }}</td>
-              <td class="p-2 flex gap-2">
-                <button class="text-blue-500 flex items-center" @click="openEditModal(employee)">
-                  <i class="fas fa-edit mr-1"></i> Edit
-                </button>
-                <button class="text-red-500 flex items-center" @click="deleteEmployee(employee.id)">
-                  <i class="fas fa-trash mr-1"></i> Hapus
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">Pengajuan Cuti Terbaru</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Karyawan</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe Cuti</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="request in leaveRequests" :key="request.id">
+                <td class="px-6 py-4 whitespace-nowrap">{{ request.employee }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ request.type }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ request.startDate }} - {{ request.endDate }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span :class="{
+                    'px-2 py-1 text-xs rounded-full': true,
+                    'bg-yellow-100 text-yellow-800': request.status === 'Pending',
+                    'bg-green-100 text-green-800': request.status === 'Approved',
+                    'bg-red-100 text-red-800': request.status === 'Rejected'
+                  }">
+                    {{ request.status }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <button v-if="request.status === 'Pending'" @click="approveLeave(request.id)" class="text-green-600 hover:text-green-900 mr-3">
+                    <i class="fas fa-check"></i>
+                  </button>
+                  <button v-if="request.status === 'Pending'" @click="rejectLeave(request.id)" class="text-red-600 hover:text-red-900">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pengumuman -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">Pengumuman</h3>
+          <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+            <i class="fas fa-eye mr-2"></i>Lihat Detail
+          </button>
+        </div>
+        <div class="space-y-4">
+          <div v-for="announcement in announcements" :key="announcement.id" class="border rounded-lg p-6">
+            <div class="flex justify-between items-start mb-2">
+              <h4 class="font-semibold">{{ announcement.title }}</h4>
+              <span class="text-sm text-gray-500">{{ announcement.date }}</span>
+            </div>
+            <p class="text-gray-600">{{ announcement.content }}</p>
+          </div>
+        </div>
       </div>
     </div>
   </AuthenticatedLayout>
