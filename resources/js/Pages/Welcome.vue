@@ -1,5 +1,6 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
+import Footer from '@/Components/Footer.vue';
 
 defineProps({
     canLogin: {
@@ -80,7 +81,7 @@ function handleImageError() {
                 <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
                     <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
                         <!-- Feature 1 -->
-                        <div class="p-6 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition duration-300">
+                        <div class="p-6 bg-white/10 backdrop-blur-md rounded-lg border border-white/20 hover:bg-white/20 transition duration-300">
                             <div class="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white mb-4">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -91,7 +92,7 @@ function handleImageError() {
                         </div>
 
                         <!-- Feature 2 -->
-                        <div class="p-6 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition duration-300">
+                        <div class="p-6 bg-white/10 backdrop-blur-md rounded-lg border border-white/20 hover:bg-white/20 transition duration-300">
                             <div class="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white mb-4">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -102,7 +103,7 @@ function handleImageError() {
                         </div>
 
                         <!-- Feature 3 -->
-                        <div class="p-6 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition duration-300">
+                        <div class="p-6 bg-white/10 backdrop-blur-md rounded-lg border border-white/20 hover:bg-white/20 transition duration-300">
                             <div class="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white mb-4">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -117,12 +118,6 @@ function handleImageError() {
         </div>
 
         <!-- Footer -->
-        <footer class="bg-gray-800">
-            <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-                <div class="text-center">
-                    <p class="text-base text-gray-400">&copy; 2024 Kimia Farma. All rights reserved.</p>
-                </div>
-            </div>
-        </footer>
+        <Footer />
     </div>
 </template>
