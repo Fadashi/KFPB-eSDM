@@ -28,12 +28,38 @@ const menuItems = computed(() => {
     case 'pegawai':
       return [
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
-        { icon: 'fas fa-user-clock', text: 'Absensi', route: '#' },
+        { icon: 'fas fa-user-clock', text: 'Absensi', route: 'pegawai.attendance' },
         { icon: 'fas fa-calendar-alt', text: 'Pengajuan Cuti', route: '#' },
         { icon: 'fas fa-history', text: 'Riwayat', route: '#' },
       ]
     default:
       return []
+  }
+})
+
+const panelTitle = computed(() => {
+  switch (user.role) {
+    case 'admin':
+      return 'Admin Panel'
+    case 'atasan':
+      return 'Atasan Panel'
+    case 'pegawai':
+      return 'Pegawai Panel'
+    default:
+      return 'Panel'
+  }
+})
+
+const logoImage = computed(() => {
+  switch (user.role) {
+    case 'admin':
+      return '/images/user-gear.png'
+    case 'atasan':
+      return '/images/user-tie.png'
+    case 'pegawai':
+      return '/images/user.png'
+    default:
+      return '/images/user.png'
   }
 })
 
@@ -54,8 +80,10 @@ const isActiveRoute = (routeName) => {
 <template>
   <div class="sidebar" :class="{ collapsed: isCollapsed }">
     <div class="logo-container">
-      <Link :href="route('dashboard')" class="logo">Logo</Link>
-      <h2 v-if="!isCollapsed">Admin Panel</h2>
+      <Link :href="route('dashboard')" class="logo">
+        <img :src="logoImage" width="100" height="40">
+      </Link>
+      <h2 v-if="!isCollapsed">{{ panelTitle }}</h2>
     </div>
 
     <button class="toggle-btn" @click="toggleSidebar">
