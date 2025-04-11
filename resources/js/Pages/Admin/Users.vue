@@ -10,9 +10,9 @@ const handleSidebarCollapse = (isCollapsed) => {
 
 // Data untuk tabel user (nanti bisa diintegrasikan dengan API)
 const users = ref([
-  { id: 1, name: 'John Doe', email: 'john@example.com', role: 'pegawai', status: 'Active' },
-  { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'atasan', status: 'Active' },
-  { id: 3, name: 'Admin User', email: 'admin@example.com', role: 'admin', status: 'Active' },
+  { id: 1, name: 'John Doe', username: 'johndoe666', role: 'pegawai', status: 'Active' },
+  { id: 2, name: 'Jane Smith', username: 'janesmith123', role: 'atasan', status: 'Active' },
+  { id: 3, name: 'Admin User', username: 'admin001', role: 'admin', status: 'Active' },
 ]);
 
 // State untuk modal create dan edit user
@@ -22,7 +22,7 @@ const showDeleteModal = ref(false);
 const selectedUser = ref(null);
 const newUser = ref({
   name: '',
-  email: '',
+  username: '',
   password: '',
   password_confirmation: '',
   role: 'pegawai',
@@ -46,7 +46,7 @@ const filterRole = ref('all');
 const filteredUsers = computed(() => {
   return users.value.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchQuery.value.toLowerCase());
+                         user.username.toLowerCase().includes(searchQuery.value.toLowerCase());
     const matchesRole = filterRole.value === 'all' || user.role === filterRole.value;
     return matchesSearch && matchesRole;
   });
@@ -94,7 +94,7 @@ const openCreateModal = () => {
   showPasswordConfirmation.value = false;
   newUser.value = {
     name: '',
-    email: '',
+    username: '',
     password: '',
     password_confirmation: '',
     role: 'pegawai',
@@ -108,7 +108,7 @@ const closeCreateModal = () => {
   showPasswordConfirmation.value = false;
   newUser.value = {
     name: '',
-    email: '',
+    username: '',
     password: '',
     password_confirmation: '',
     role: 'pegawai',
@@ -117,7 +117,7 @@ const closeCreateModal = () => {
 
 // Method untuk membuka modal edit
 const openEditModal = (user) => {
-  selectedUser.value = { 
+  selectedUser.value = {
     ...user,
     password: '' // Tambahkan field password kosong
   };
@@ -160,7 +160,7 @@ const createUser = () => {
 
   // Generate ID sederhana (dalam implementasi nyata akan dari backend)
   const newId = Math.max(...users.value.map(u => u.id)) + 1;
-  
+
   // Tambah user baru ke array
   users.value.push({
     id: newId,
@@ -170,7 +170,7 @@ const createUser = () => {
 
   // Tampilkan notifikasi sukses (bisa disesuaikan)
   alert('User berhasil ditambahkan!');
-  
+
   closeCreateModal();
 };
 
@@ -192,7 +192,7 @@ const updateUser = () => {
 
   // Tampilkan notifikasi sukses (bisa disesuaikan)
   alert('User berhasil diupdate!');
-  
+
   closeEditModal();
 };
 
@@ -203,7 +203,7 @@ const deleteUser = () => {
 
   // Tampilkan notifikasi sukses (bisa disesuaikan)
   alert('User berhasil dihapus!');
-  
+
   closeDeleteModal();
 };
 </script>
@@ -247,7 +247,7 @@ const deleteUser = () => {
                 <input
                   type="text"
                   v-model="searchQuery"
-                  placeholder="Cari nama atau email..."
+                  placeholder="Cari nama atau username..."
                   class="w-full md:w-64 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                 <div class="absolute left-3 top-2.5 text-gray-400">
@@ -272,7 +272,7 @@ const deleteUser = () => {
                 <tr class="bg-gray-100">
                   <th class="p-2 text-left">No</th>
                   <th class="p-2 text-left">Nama</th>
-                  <th class="p-2 text-left">Email</th>
+                  <th class="p-2 text-left">username</th>
                   <th class="p-2 text-left">Role</th>
                   <th class="p-2 text-left">Status</th>
                   <th class="p-2 text-left">Aksi</th>
@@ -288,7 +288,7 @@ const deleteUser = () => {
                   <td class="p-2">
                     <div class="text-sm font-medium text-gray-900">{{ user.name }}</div>
                   </td>
-                  <td class="p-2 text-sm text-gray-500">{{ user.email }}</td>
+                  <td class="p-2 text-sm text-gray-500">{{ user.username }}</td>
                   <td class="p-2">
                     <span
                       class="px-2 py-1 text-xs font-semibold rounded-full"
@@ -334,7 +334,7 @@ const deleteUser = () => {
             <div class="flex items-center space-x-2">
               <span class="text-sm text-gray-700">Tampilkan</span>
               <div class="relative">
-                <select 
+                <select
                   :value="perPage"
                   @change="changePerPage($event.target.value)"
                   class="border rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none pr-8 cursor-pointer"
@@ -350,8 +350,8 @@ const deleteUser = () => {
             </div>
 
             <div class="flex items-center space-x-2">
-              <button 
-                @click="changePage(currentPage - 1)" 
+              <button
+                @click="changePage(currentPage - 1)"
                 :disabled="currentPage === 1"
                 class="px-3 py-1 rounded border text-sm"
                 :class="currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100'"
@@ -360,10 +360,10 @@ const deleteUser = () => {
               </button>
 
               <template v-for="page in totalPages" :key="page">
-                <button 
-                  v-if="page === currentPage || 
-                        page === 1 || 
-                        page === totalPages || 
+                <button
+                  v-if="page === currentPage ||
+                        page === 1 ||
+                        page === totalPages ||
                         (page >= currentPage - 1 && page <= currentPage + 1)"
                   @click="changePage(page)"
                   class="px-3 py-1 rounded text-sm"
@@ -371,16 +371,16 @@ const deleteUser = () => {
                 >
                   {{ page }}
                 </button>
-                <span 
-                  v-else-if="page === currentPage - 2 || page === currentPage + 2" 
+                <span
+                  v-else-if="page === currentPage - 2 || page === currentPage + 2"
                   class="text-gray-400"
                 >
                   ...
                 </span>
               </template>
 
-              <button 
-                @click="changePage(currentPage + 1)" 
+              <button
+                @click="changePage(currentPage + 1)"
                 :disabled="currentPage === totalPages"
                 class="px-3 py-1 rounded border text-sm"
                 :class="currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100'"
@@ -411,22 +411,22 @@ const deleteUser = () => {
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Email</label>
-              <input type="email" v-model="newUser.email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+              <label class="block text-sm font-medium text-gray-700">username</label>
+              <input type="username" v-model="newUser.username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
             </div>
 
             <div class="relative">
               <label class="block text-sm font-medium text-gray-700">Password</label>
               <div class="relative">
-                <input 
-                  :type="showPassword ? 'text' : 'password'" 
-                  v-model="newUser.password" 
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10" 
+                <input
+                  :type="showPassword ? 'text' : 'password'"
+                  v-model="newUser.password"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
                   required
                 >
-                <button 
+                <button
                   type="button"
-                  @click="showPassword = !showPassword" 
+                  @click="showPassword = !showPassword"
                   class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 mt-1"
                 >
                   <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
@@ -437,15 +437,15 @@ const deleteUser = () => {
             <div class="relative">
               <label class="block text-sm font-medium text-gray-700">Konfirmasi Password</label>
               <div class="relative">
-                <input 
-                  :type="showPasswordConfirmation ? 'text' : 'password'" 
-                  v-model="newUser.password_confirmation" 
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10" 
+                <input
+                  :type="showPasswordConfirmation ? 'text' : 'password'"
+                  v-model="newUser.password_confirmation"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
                   required
                 >
-                <button 
+                <button
                   type="button"
-                  @click="showPasswordConfirmation = !showPasswordConfirmation" 
+                  @click="showPasswordConfirmation = !showPasswordConfirmation"
                   class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 mt-1"
                 >
                   <i :class="showPasswordConfirmation ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
@@ -493,24 +493,24 @@ const deleteUser = () => {
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Email</label>
-              <input type="email" v-model="selectedUser.email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+              <label class="block text-sm font-medium text-gray-700">username</label>
+              <input type="username" v-model="selectedUser.username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
             </div>
 
             <div class="relative">
               <label class="block text-sm font-medium text-gray-700">
-                Password 
+                Password
                 <span class="text-sm text-gray-500">(Kosongkan jika tidak ingin mengubah)</span>
               </label>
               <div class="relative">
-                <input 
-                  :type="showEditPassword ? 'text' : 'password'" 
-                  v-model="selectedUser.password" 
+                <input
+                  :type="showEditPassword ? 'text' : 'password'"
+                  v-model="selectedUser.password"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
                 >
-                <button 
+                <button
                   type="button"
-                  @click="showEditPassword = !showEditPassword" 
+                  @click="showEditPassword = !showEditPassword"
                   class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 mt-1"
                 >
                   <i :class="showEditPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>

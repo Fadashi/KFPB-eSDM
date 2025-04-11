@@ -33,7 +33,7 @@ const sidebarCollapsed = ref(false);
 
 // Data statistik
 const statistics = ref({
-  totalEmployees: 50,
+  totalEmployees: 100,
   totalDepartments: 8,
   totalSubDepartments: 15,
   presentToday: 45,
