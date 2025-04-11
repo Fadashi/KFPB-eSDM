@@ -1,7 +1,37 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+
+const currentTime = ref('')
+const currentDate = ref('')
+
+const updateDateTime = () => {
+  const now = new Date()
+  currentTime.value = now.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+  currentDate.value = now.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+let timer
+
+onMounted(() => {
+  updateDateTime()
+  timer = setInterval(updateDateTime, 1000)
+})
+
+onUnmounted(() => {
+  clearInterval(timer)
+})
 
 const attendance = ref({
   status: 'Belum Absen',
@@ -23,11 +53,21 @@ const recentAttendance = ref([
 
 const checkIn = () => {
   attendance.value.status = 'Sudah Absen'
-  attendance.value.lastCheckIn = new Date().toLocaleTimeString()
+  attendance.value.lastCheckIn = new Date().toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
 }
 
 const checkOut = () => {
-  attendance.value.lastCheckOut = new Date().toLocaleTimeString()
+  attendance.value.lastCheckOut = new Date().toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
 }
 </script>
 
@@ -48,10 +88,10 @@ const checkOut = () => {
           <h2 class="text-lg font-semibold mb-4">Absensi Hari Ini</h2>
           <div class="text-center py-6">
             <div class="text-6xl font-bold mb-4 text-gray-800">
-              {{ new Date().toLocaleTimeString() }}
+              {{ currentTime }}
             </div>
             <div class="text-gray-600 mb-6">
-              {{ new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
+              {{ currentDate }}
             </div>
             <div class="space-x-4">
               <button 

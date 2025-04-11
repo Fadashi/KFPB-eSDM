@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Pegawai\AttendanceController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -90,6 +91,13 @@ Route::middleware(['auth', 'checkRole:pegawai'])->prefix('pegawai')->group(funct
     Route::get('/leave-requests', function () {
         return Inertia::render('Pegawai/LeaveRequests');
     })->name('pegawai.leave-requests');
+
+    // API Routes for Attendance
+    Route::prefix('api')->group(function () {
+        Route::get('/attendance', [AttendanceController::class, 'index']);
+        Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn']);
+        Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut']);
+    });
 });
 
 // Tambahkan route autentikasi dari Laravel Breeze / Jetstream
