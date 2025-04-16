@@ -131,6 +131,10 @@ Route::middleware(['auth', 'checkRole:pegawai'])->prefix('pegawai')->group(funct
         return Inertia::render('Pegawai/Dashboard');
     })->name('pegawai.dashboard');
 
+    Route::get('/profile', function () {
+        return Inertia::render('Pegawai/Profile');
+    })->name('pegawai.profile');
+
     Route::get('/attendance', function () {
         return Inertia::render('Pegawai/Attendance');
     })->name('pegawai.attendance');

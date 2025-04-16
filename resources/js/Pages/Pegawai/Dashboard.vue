@@ -76,10 +76,19 @@ const checkOut = () => {
 
   <AuthenticatedLayout>
     <template #header>
-      <h2 class="text-xl font-semibold leading-tight text-gray-800">
-        Dashboard Saya
-      </h2>
-    </template>
+            <!-- Breadcrumbs -->
+            <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
+                <ol class="list-none p-0 inline-flex">
+                    <li class="flex items-center">
+                        <i class="fas fa-home text-gray-600 mr-1"></i>
+                        <p class="text-gray-600 font-semibold">Dashboard</p>
+                    </li>
+                </ol>
+            </nav>
+            <div class="flex items-center justify-between">
+                <h1 class="text-xl font-semibold text-gray-900">Dashboard Saya</h1>
+            </div>
+        </template>
 
     <div class="p-6 space-y-6">
       <!-- Absensi Hari Ini -->
@@ -94,14 +103,14 @@ const checkOut = () => {
               {{ currentDate }}
             </div>
             <div class="space-x-4">
-              <button 
+              <button
                 @click="checkIn"
                 :disabled="attendance.status === 'Sudah Absen'"
                 class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
               >
                 Check In
               </button>
-              <button 
+              <button
                 @click="checkOut"
                 :disabled="!attendance.lastCheckIn"
                 class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
