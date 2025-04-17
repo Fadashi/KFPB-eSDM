@@ -45,7 +45,11 @@ const formData = ref({
     education: '',
     position_date: '',
     position: '',
-    status: ''
+    status: '',
+    // Data Akun
+    username: '',
+    password: '',
+    role: ''
 });
 
 const provinces = ref([]);
@@ -85,6 +89,12 @@ const educations = ref([
     { id: 5, name: 'S1' },
     { id: 6, name: 'S2' },
     { id: 7, name: 'S3' }
+]);
+
+const roles = ref([
+    { id: 1, name: 'Admin' },
+    { id: 2, name: 'User' },
+    { id: 3, name: 'Manager' }
 ]);
 
 const handleFileChange = (event) => {
@@ -582,6 +592,47 @@ const submitForm = () => {
                     >
                         <option value="">-- Pilih Status Keaktifan --</option>
                     </select>
+                </div>
+
+                <!-- Data Akun -->
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Data Akun</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input
+                            type="text"
+                            id="username"
+                            v-model="formData.username"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input
+                            type="password"
+                            id="password"
+                            v-model="formData.password"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+                        <select
+                            id="role"
+                            v-model="formData.role"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            required
+                        >
+                            <option value="">-- Pilih Role --</option>
+                            <option v-for="role in roles" :key="role.id" :value="role.id">
+                                {{ role.name }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="flex justify-end">

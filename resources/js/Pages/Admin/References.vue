@@ -2,147 +2,313 @@
 import { ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import PositionModal from '@/Components/PositionModal.vue';
+import DepartmentModal from '@/Components/DepartmentModal.vue';
+import SubDepartmentModal from '@/Components/SubDepartmentModal.vue';
+import ShiftModal from '@/Components/ShiftModal.vue';
+import ReligionModal from '@/Components/ReligionModal.vue';
+import StructureModal from '@/Components/StructureModal.vue';
+import HolidayModal from '@/Components/HolidayModal.vue';
+import LeaveModal from '@/Components/LeaveModal.vue';
+import EmployeeStatusModal from '@/Components/EmployeeStatusModal.vue';
+import BankModal from '@/Components/BankModal.vue';
+import GradingModal from '@/Components/GradingModal.vue';
+import StructuralPositionModal from '@/Components/StructuralPositionModal.vue';
+import FunctionalPositionModal from '@/Components/FunctionalPositionModal.vue';
+import EselonModal from '@/Components/EselonModal.vue';
+import DocumentModal from '@/Components/DocumentModal.vue';
+import PayrollModal from '@/Components/PayrollModal.vue';
 
 const sidebarCollapsed = ref(false);
 const handleSidebarCollapse = (isCollapsed) => {
   sidebarCollapsed.value = isCollapsed;
 };
 
+const showPositionModal = ref(false);
+const showDepartmentModal = ref(false);
+const showSubDepartmentModal = ref(false);
+const showShiftModal = ref(false);
+const showReligionModal = ref(false);
+const showStructureModal = ref(false);
+const showHolidayModal = ref(false);
+const showLeaveModal = ref(false);
+const showEmployeeStatusModal = ref(false);
+const showBankModal = ref(false);
+const showGradingModal = ref(false);
+const showStructuralPositionModal = ref(false);
+const showFunctionalPositionModal = ref(false);
+const showEselonModal = ref(false);
+const showDocumentModal = ref(false);
+const showPayrollModal = ref(false);
 </script>
 
 <template>
-  <Head title="Admin References"/>
+  <Head title="Referensi" />
 
   <AuthenticatedLayout>
     <template #header>
-            <!-- Breadcrumbs -->
-            <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
-                <ol class="list-none p-0 inline-flex">
-                    <li class="flex items-center">
-                        <i class="fas fa-home text-blue-600 mr-1"></i>
-                        <a href="/admin/dashboard" class="text-blue-600 hover:text-blue-800 font-semibold">Dashboard</a>
-                        <svg class="w-4 h-4 mx-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-                        </svg>
-                    </li>
-                    <li class="flex items-center text-gray-700 font-semibold">
-                        Referensi
-                    </li>
-                </ol>
-            </nav>
-
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-gray-900">Referensi</h1>
-            </div>
-        </template>
+      <h2 class="text-xl font-semibold leading-tight text-gray-800">
+        Referensi
+      </h2>
+    </template>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-      <div class="bg-blue-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
+      <!-- Jabatan -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showPositionModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
           <i class="fas fa-briefcase mr-2 text-blue-600"></i> Data Jabatan
         </h2>
-        <p>Kelola jabatan dan tanggung jawab karyawan.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Kelola jabatan dan tanggung jawab karyawan.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-green-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
+      
+      <!-- Bagian -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showDepartmentModal = true">
         <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-sitemap mr-2 text-green-600"></i> Data Bagian
+          <i class="fas fa-sitemap mr-2 text-blue-600"></i> Data Bagian
         </h2>
         <p>Informasi tentang struktur organisasi.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <div class="text-blue-500 hover:underline font-bold">Lihat Detail</div>
       </div>
-      <div class="bg-yellow-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
+
+      <!-- Sub Bagian -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showSubDepartmentModal = true">
         <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-clock mr-2 text-yellow-600"></i> Data Shift
+          <i class="fas fa-sitemap mr-2 text-blue-600"></i> Data Sub Bagian
         </h2>
-        <p>Detail jam kerja dan pembagian shift.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p>Informasi tentang struktur organisasi.</p>
+        <div class="text-blue-500 hover:underline font-bold">Lihat Detail</div>
       </div>
-      <div class="bg-purple-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-praying-hands mr-2 text-purple-600"></i> Data Agama
+
+      <!-- Shift -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showShiftModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-clock mr-2 text-blue-600"></i> Data Shift
         </h2>
-        <p>Data agama karyawan untuk administrasi.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Detail jam kerja dan pembagian shift.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-red-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-users-cog mr-2 text-red-600"></i> Data Struktur
+
+      <!-- Agama -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showReligionModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-praying-hands mr-2 text-blue-600"></i> Data Agama
         </h2>
-        <p>Hierarki dan hubungan antar jabatan.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Data agama karyawan untuk administrasi.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-teal-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-user-clock mr-2 text-teal-600"></i> Data Libur
+
+      <!-- Struktur -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showStructureModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-users-cog mr-2 text-blue-600"></i> Data Struktur
         </h2>
-        <p>Hari libur dan cuti bersama.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Hierarki dan hubungan antar jabatan.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-orange-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-calendar-alt mr-2 text-orange-600"></i> Data Cuti
+
+      <!-- Libur -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showHolidayModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-user-clock mr-2 text-blue-600"></i> Data Libur
         </h2>
-        <p>Jenis cuti dan prosedur pengajuan.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Hari libur dan cuti bersama.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-indigo-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-user-tag mr-2 text-indigo-600"></i> Status Pegawai
+
+      <!-- Cuti -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showLeaveModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-calendar-alt mr-2 text-blue-600"></i> Data Cuti
         </h2>
-        <p>Status kepegawaian karyawan.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Jenis cuti dan prosedur pengajuan.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-pink-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-university mr-2 text-pink-600"></i> Data Bank
+
+      <!-- Status Pegawai -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showEmployeeStatusModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-user-tag mr-2 text-blue-600"></i> Status Pegawai
         </h2>
-        <p>Data bank untuk penggajian.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Status kepegawaian karyawan.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-gray-100 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-chart-line mr-2 text-gray-600"></i> Data Grading
+
+      <!-- Bank -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showBankModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-university mr-2 text-blue-600"></i> Data Bank
         </h2>
-        <p>Sistem grading untuk penilaian karyawan.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Data bank untuk penggajian.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-blue-200 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
+
+      <!-- Grading -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showGradingModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-chart-line mr-2 text-blue-600"></i> Data Grading
+        </h2>
+        <p class="text-gray-600 text-sm mt-2">Sistem grading untuk penilaian karyawan.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
+      </div>
+
+      <!-- Jabatan Struktural -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showStructuralPositionModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
           <i class="fas fa-user-tie mr-2 text-blue-600"></i> Jabatan Struktural
         </h2>
-        <p>Jabatan struktural dan tanggung jawab.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Jabatan struktural dan tanggung jawab.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-green-200 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-user-friends mr-2 text-green-600"></i> Jabatan Fungsional
+
+      <!-- Jabatan Fungsional -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showFunctionalPositionModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-user-friends mr-2 text-blue-600"></i> Jabatan Fungsional
         </h2>
-        <p>Peran jabatan fungsional di perusahaan.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Peran jabatan fungsional di perusahaan.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-yellow-200 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-file-alt mr-2 text-yellow-600"></i> Data Eselon
+
+      <!-- Eselon -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showEselonModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-file-alt mr-2 text-blue-600"></i> Data Eselon
         </h2>
-        <p>Kriteria jabatan eselon dalam organisasi.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Kriteria jabatan eselon dalam organisasi.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-purple-200 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-file-invoice mr-2 text-purple-600"></i> Data Berkas
+
+      <!-- Berkas -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showDocumentModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-file-invoice mr-2 text-blue-600"></i> Data Berkas
         </h2>
-        <p>Berkas penting yang harus dikelola.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Berkas penting yang harus dikelola.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
-      <div class="bg-red-200 p-4 rounded-lg shadow transition-transform transform hover:scale-105 hover:shadow-lg">
-        <h2 class="font-semibold text-lg flex items-center">
-          <i class="fas fa-money-check-alt mr-2 text-red-600"></i> Data Payroll
+
+      <!-- Payroll -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md cursor-pointer" @click="showPayrollModal = true">
+        <h2 class="font-semibold text-lg flex items-center text-gray-700">
+          <i class="fas fa-money-check-alt mr-2 text-blue-600"></i> Data Payroll
         </h2>
-        <p>Informasi penggajian dan tunjangan karyawan.</p>
-        <router-link to="#" class="text-blue-500 hover:underline font-bold cursor-pointer">Lihat Detail</router-link>
+        <p class="text-gray-600 text-sm mt-2">Informasi penggajian dan tunjangan karyawan.</p>
+        <div class="text-blue-600 hover:text-blue-700 font-medium text-sm mt-3">Lihat Detail</div>
       </div>
     </div>
+
+    <!-- Modal Jabatan -->
+    <PositionModal
+      v-if="showPositionModal"
+      :show="showPositionModal"
+      @close="showPositionModal = false"
+    />
+
+    <!-- Modal Bagian -->
+    <DepartmentModal
+      v-if="showDepartmentModal"
+      :show="showDepartmentModal"
+      @close="showDepartmentModal = false"
+    />
+
+    <!-- Modal Sub Bagian -->
+    <SubDepartmentModal
+      v-if="showSubDepartmentModal"
+      :show="showSubDepartmentModal"
+      @close="showSubDepartmentModal = false"
+    />
+
+    <!-- Modal Shift -->
+    <ShiftModal
+      v-if="showShiftModal"
+      :show="showShiftModal"
+      @close="showShiftModal = false"
+    />
+
+    <!-- Modal Agama -->
+    <ReligionModal
+      v-if="showReligionModal"
+      :show="showReligionModal"
+      @close="showReligionModal = false"
+    />
+
+    <!-- Modal Struktur -->
+    <StructureModal
+      v-if="showStructureModal"
+      :show="showStructureModal"
+      @close="showStructureModal = false"
+    />
+
+    <!-- Modal Libur -->
+    <HolidayModal
+      v-if="showHolidayModal"
+      :show="showHolidayModal"
+      @close="showHolidayModal = false"
+    />
+
+    <!-- Modal Cuti -->
+    <LeaveModal
+      v-if="showLeaveModal"
+      :show="showLeaveModal"
+      @close="showLeaveModal = false"
+    />
+
+    <!-- Modal Status Pegawai -->
+    <EmployeeStatusModal
+      v-if="showEmployeeStatusModal"
+      :show="showEmployeeStatusModal"
+      @close="showEmployeeStatusModal = false"
+    />
+
+    <!-- Modal Bank -->
+    <BankModal
+      v-if="showBankModal"
+      :show="showBankModal"
+      @close="showBankModal = false"
+    />
+
+    <!-- Modal Grading -->
+    <GradingModal
+      v-if="showGradingModal"
+      :show="showGradingModal"
+      @close="showGradingModal = false"
+    />
+
+    <!-- Modal Jabatan Struktural -->
+    <StructuralPositionModal
+      v-if="showStructuralPositionModal"
+      :show="showStructuralPositionModal"
+      @close="showStructuralPositionModal = false"
+    />
+
+    <!-- Modal Jabatan Fungsional -->
+    <FunctionalPositionModal
+      v-if="showFunctionalPositionModal"
+      :show="showFunctionalPositionModal"
+      @close="showFunctionalPositionModal = false"
+    />
+
+    <!-- Modal Eselon -->
+    <EselonModal
+      v-if="showEselonModal"
+      :show="showEselonModal"
+      @close="showEselonModal = false"
+    />
+
+    <!-- Modal Berkas -->
+    <DocumentModal
+      v-if="showDocumentModal"
+      :show="showDocumentModal"
+      @close="showDocumentModal = false"
+    />
+
+    <!-- Modal Payroll -->
+    <PayrollModal
+      v-if="showPayrollModal"
+      :show="showPayrollModal"
+      @close="showPayrollModal = false"
+    />
   </AuthenticatedLayout>
 </template>
 
