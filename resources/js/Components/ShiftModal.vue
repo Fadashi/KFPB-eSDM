@@ -3,7 +3,7 @@
     <div class="bg-white rounded-lg w-full max-w-5xl my-8">
       <div class="flex justify-between items-center p-6 border-b">
         <h2 class="text-xl font-semibold">Data Shift</h2>
-        <button @click="closeModal" class="text-gray-500 hover:text-gray-700">
+        <button @click="$emit('close')" class="text-gray-500 hover:text-gray-700">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -23,6 +23,7 @@
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
+                <div v-if="errors.shift" class="text-red-500 text-sm mt-1">{{ errors.shift }}</div>
               </div>
               <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -34,16 +35,18 @@
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     required
                   />
+                  <div v-if="errors.jam_masuk" class="text-red-500 text-sm mt-1">{{ errors.jam_masuk }}</div>
                 </div>
                 <div>
-                  <label for="jam_pulang" class="block text-sm font-medium text-gray-700">Jam Pulang</label>
+                  <label for="jam_keluar" class="block text-sm font-medium text-gray-700">Jam Keluar</label>
                   <input
                     type="time"
-                    id="jam_pulang"
-                    v-model="form.jam_pulang"
+                    id="jam_keluar"
+                    v-model="form.jam_keluar"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     required
                   />
+                  <div v-if="errors.jam_keluar" class="text-red-500 text-sm mt-1">{{ errors.jam_keluar }}</div>
                 </div>
               </div>
             </div>
@@ -56,8 +59,8 @@
                   v-model="form.latitude"
                   placeholder="Contoh: -6.123456"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
                 />
+                <div v-if="errors.latitude" class="text-red-500 text-sm mt-1">{{ errors.latitude }}</div>
               </div>
               <div>
                 <label for="longitude" class="block text-sm font-medium text-gray-700">Longitude</label>
@@ -67,8 +70,8 @@
                   v-model="form.longitude"
                   placeholder="Contoh: 106.123456"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
                 />
+                <div v-if="errors.longitude" class="text-red-500 text-sm mt-1">{{ errors.longitude }}</div>
               </div>
             </div>
             <div class="mt-4 flex justify-end gap-2">
@@ -82,7 +85,11 @@
               <button
                 type="submit"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                :disabled="loading"
               >
+                <span v-if="loading">
+                  <i class="fas fa-spinner fa-spin mr-2"></i>
+                </span>
                 {{ isEditing ? 'Update' : 'Simpan' }}
               </button>
             </div>
@@ -113,7 +120,12 @@
             </button>
           </div>
 
-          <div class="overflow-x-auto">
+          <div v-if="loading && !shifts.length" class="text-center py-6">
+            <i class="fas fa-spinner fa-spin text-blue-500 text-2xl"></i>
+            <p class="mt-2 text-gray-600">Memuat data...</p>
+          </div>
+
+          <div v-else class="overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -121,7 +133,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shift</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Masuk</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Pulang</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Keluar</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Latitude</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Longitude</th>
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -132,9 +144,9 @@
                     <td class="px-6 py-4 whitespace-nowrap">{{ startIndex + index + 1 }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ shift.shift }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ shift.jam_masuk }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ shift.jam_pulang }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ shift.latitude }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ shift.longitude }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ shift.jam_keluar }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ shift.latitude || '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ shift.longitude || '-' }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center">
                       <button
                         @click="showEditForm(shift)"
@@ -144,7 +156,7 @@
                         <i class="fas fa-edit"></i>
                       </button>
                       <button
-                        @click="deleteShift(shift.id)"
+                        @click="confirmDelete(shift)"
                         class="text-red-600 hover:text-red-800"
                         title="Hapus"
                       >
@@ -152,7 +164,7 @@
                       </button>
                     </td>
                   </tr>
-                  <tr v-if="filteredShifts.length === 0">
+                  <tr v-if="filteredShifts.length === 0 && !loading">
                     <td colspan="7" class="px-6 py-4 text-center text-gray-500">
                       Tidak ada data yang ditemukan
                     </td>
@@ -163,7 +175,7 @@
           </div>
 
           <!-- Pagination -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          <div v-if="filteredShifts.length > 0" class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
             <div class="text-sm text-gray-500 w-full sm:w-auto text-center sm:text-left">
               Menampilkan {{ startIndex + 1 }} sampai {{ endIndex }} dari {{ filteredShifts.length }} data
             </div>
@@ -200,11 +212,43 @@
         </div>
       </div>
     </div>
+
+    <!-- Dialog Konfirmasi Hapus -->
+    <div v-if="showDeleteDialog" class="fixed inset-0 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg w-full max-w-md">
+        <div class="p-6">
+          <h3 class="text-lg font-medium text-gray-900">Konfirmasi Hapus</h3>
+          <p class="mt-2 text-gray-600">Apakah Anda yakin ingin menghapus shift <strong>{{ selectedShift?.shift }}</strong>?</p>
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              @click="showDeleteDialog = false"
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              @click="deleteShift"
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
+              :disabled="loading"
+            >
+              <span v-if="loading">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+              </span>
+              Hapus
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { useToast } from '@/Composables/useToast';
+import axios from 'axios';
 
 const props = defineProps({
   show: {
@@ -213,164 +257,176 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['close', 'update:shifts']);
+const emit = defineEmits(['close']);
 
+const toast = useToast();
 const showForm = ref(false);
 const isEditing = ref(false);
 const search = ref('');
 const currentPage = ref(1);
-const itemsPerPage = 5;
-
-const shifts = ref([
-  { 
-    id: 1, 
-    shift: 'Pagi',
-    jam_masuk: '07:00',
-    jam_pulang: '15:00',
-    latitude: '-6.123456',
-    longitude: '106.123456'
-  },
-  { 
-    id: 2, 
-    shift: 'Siang',
-    jam_masuk: '15:00',
-    jam_pulang: '23:00',
-    latitude: '-6.234567',
-    longitude: '106.234567'
-  },
-  { 
-    id: 3, 
-    shift: 'Malam',
-    jam_masuk: '23:00',
-    jam_pulang: '07:00',
-    latitude: '-6.345678',
-    longitude: '106.345678'
-  }
-]);
+const itemsPerPage = 10;
+const shifts = ref([]);
+const loading = ref(false);
+const errors = ref({});
+const showDeleteDialog = ref(false);
+const selectedShift = ref(null);
 
 const form = reactive({
   id: null,
   shift: '',
   jam_masuk: '',
-  jam_pulang: '',
+  jam_keluar: '',
   latitude: '',
   longitude: ''
 });
 
-// Computed properties for filtering and pagination
+// Memuat data shift dari API
+const fetchShifts = async () => {
+  loading.value = true;
+  try {
+    const response = await axios.get('/api/shift');
+    shifts.value = response.data.shift;
+  } catch (error) {
+    console.error('Error fetching shifts:', error);
+    toast.error('Gagal memuat data shift');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Filter shift berdasarkan pencarian
 const filteredShifts = computed(() => {
-  return shifts.value.filter(shift => {
-    const searchLower = search.value.toLowerCase();
-    return (
-      shift.shift.toLowerCase().includes(searchLower) ||
-      shift.jam_masuk.includes(searchLower) ||
-      shift.jam_pulang.includes(searchLower) ||
-      shift.latitude.includes(searchLower) ||
-      shift.longitude.includes(searchLower)
-    );
-  });
+  if (!search.value) return shifts.value;
+  
+  const searchLower = search.value.toLowerCase();
+  return shifts.value.filter(shift => 
+    shift.shift.toLowerCase().includes(searchLower)
+  );
 });
 
-const totalPages = computed(() => {
-  return Math.ceil(filteredShifts.value.length / itemsPerPage);
-});
-
-const startIndex = computed(() => {
-  return (currentPage.value - 1) * itemsPerPage;
-});
-
+// Paginasi
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage);
 const endIndex = computed(() => {
-  return Math.min(startIndex.value + itemsPerPage, filteredShifts.value.length);
+  const end = startIndex.value + itemsPerPage;
+  return end > filteredShifts.value.length ? filteredShifts.value.length : end;
 });
 
 const paginatedShifts = computed(() => {
   return filteredShifts.value.slice(startIndex.value, endIndex.value);
 });
 
-// Methods
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-  }
-};
+const totalPages = computed(() => {
+  return Math.ceil(filteredShifts.value.length / itemsPerPage);
+});
 
+// Reset halaman saat pencarian berubah
+watch(search, () => {
+  currentPage.value = 1;
+});
+
+// Navigasi paginasi
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
   }
 };
 
-const closeModal = () => {
-  emit('close');
-  resetForm();
-  showForm.value = false;
-  isEditing.value = false;
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
 };
 
-const closeForm = () => {
-  resetForm();
-  showForm.value = false;
-  isEditing.value = false;
-};
-
-const resetForm = () => {
-  form.id = null;
-  form.shift = '';
-  form.jam_masuk = '';
-  form.jam_pulang = '';
-  form.latitude = '';
-  form.longitude = '';
-};
-
+// Menampilkan form tambah
 const showAddForm = () => {
-  resetForm();
-  showForm.value = true;
   isEditing.value = false;
+  errors.value = {};
+  Object.keys(form).forEach(key => {
+    form[key] = key === 'id' ? null : '';
+  });
+  showForm.value = true;
 };
 
+// Menampilkan form edit
 const showEditForm = (shift) => {
-  form.id = shift.id;
-  form.shift = shift.shift;
-  form.jam_masuk = shift.jam_masuk;
-  form.jam_pulang = shift.jam_pulang;
-  form.latitude = shift.latitude;
-  form.longitude = shift.longitude;
-  showForm.value = true;
   isEditing.value = true;
+  errors.value = {};
+  Object.keys(form).forEach(key => {
+    form[key] = shift[key];
+  });
+  form.id = shift.id;
+  showForm.value = true;
 };
 
-const handleSubmit = () => {
-  if (isEditing.value) {
-    // Update existing shift
-    const index = shifts.value.findIndex(s => s.id === form.id);
-    if (index !== -1) {
-      shifts.value[index] = { ...form };
-    }
-  } else {
-    // Add new shift
-    const newShift = {
-      id: shifts.value.length + 1,
-      ...form
-    };
-    shifts.value.push(newShift);
-  }
-  resetForm();
+// Tutup form
+const closeForm = () => {
   showForm.value = false;
-  isEditing.value = false;
+  errors.value = {};
 };
 
-const deleteShift = (id) => {
-  if (confirm('Apakah Anda yakin ingin menghapus shift ini?')) {
-    shifts.value = shifts.value.filter(s => s.id !== id);
-    // Reset to first page if current page is empty
-    if (paginatedShifts.value.length === 0 && currentPage.value > 1) {
-      currentPage.value--;
+// Konfirmasi delete
+const confirmDelete = (shift) => {
+  selectedShift.value = shift;
+  showDeleteDialog.value = true;
+};
+
+// Mengirim data ke API
+const handleSubmit = async () => {
+  loading.value = true;
+  errors.value = {};
+
+  try {
+    if (isEditing.value) {
+      await axios.put(`/api/shift/${form.id}`, form);
+      toast.success('Data shift berhasil diperbarui');
+    } else {
+      await axios.post('/api/shift', form);
+      toast.success('Data shift berhasil ditambahkan');
     }
+    
+    fetchShifts(); // Refresh data
+    closeForm();
+  } catch (error) {
+    console.error('Error submitting form:', error);
+    
+    if (error.response && error.response.data && error.response.data.errors) {
+      errors.value = error.response.data.errors;
+    } else {
+      toast.error('Terjadi kesalahan saat menyimpan data');
+    }
+  } finally {
+    loading.value = false;
   }
 };
 
-// Watch for search changes to reset pagination
-watch(search, () => {
-  currentPage.value = 1;
+// Menghapus data
+const deleteShift = async () => {
+  if (!selectedShift.value) return;
+  
+  loading.value = true;
+  try {
+    await axios.delete(`/api/shift/${selectedShift.value.id}`);
+    toast.success('Data shift berhasil dihapus');
+    fetchShifts(); // Refresh data
+    showDeleteDialog.value = false;
+  } catch (error) {
+    console.error('Error deleting shift:', error);
+    toast.error('Gagal menghapus data shift');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Muat data saat komponen muncul
+watch(() => props.show, (newValue) => {
+  if (newValue) {
+    fetchShifts();
+  }
+});
+
+onMounted(() => {
+  if (props.show) {
+    fetchShifts();
+  }
 });
 </script> 

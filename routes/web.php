@@ -5,6 +5,7 @@ use App\Http\Controllers\Pegawai\AttendanceController;
 use App\Http\Controllers\RefJabatanController;
 use App\Http\Controllers\RefBagianController;
 use App\Http\Controllers\RefSubBagianController;
+use App\Http\Controllers\RefShiftController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +66,7 @@ Route::middleware(['auth'])->group(function () {
         Route::apiResource('jabatan', RefJabatanController::class);
         Route::apiResource('bagian', RefBagianController::class);
         Route::apiResource('subbagian', RefSubBagianController::class);
+        Route::apiResource('shift', RefShiftController::class);
     });
 
     //Karyawan
