@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Pegawai\AttendanceController;
 use App\Http\Controllers\RefJabatanController;
+use App\Http\Controllers\RefBagianController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -61,6 +62,7 @@ Route::middleware(['auth'])->group(function () {
     // API Route untuk Referensi Jabatan
     Route::prefix('api')->middleware('checkRole:admin')->group(function () {
         Route::apiResource('jabatan', RefJabatanController::class);
+        Route::apiResource('bagian', RefBagianController::class);
     });
 
     //Karyawan

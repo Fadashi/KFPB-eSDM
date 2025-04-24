@@ -3,7 +3,7 @@
     <div class="bg-white rounded-lg w-full max-w-4xl my-8">
       <div class="flex justify-between items-center p-6 border-b">
         <h2 class="text-xl font-semibold">Data Bagian</h2>
-        <button @click="closeModal" class="text-gray-500 hover:text-gray-700">
+        <button @click="$emit('close')" class="text-gray-500 hover:text-gray-700">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -19,20 +19,22 @@
                 <input
                   type="text"
                   id="department_code"
-                  v-model="form.code"
+                  v-model="form.kode"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
+                <div v-if="errors.kode" class="text-red-500 text-sm mt-1">{{ errors.kode }}</div>
               </div>
               <div>
                 <label for="department_name" class="block text-sm font-medium text-gray-700">Nama Bagian</label>
                 <input
                   type="text"
                   id="department_name"
-                  v-model="form.name"
+                  v-model="form.bagian"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
+                <div v-if="errors.bagian" class="text-red-500 text-sm mt-1">{{ errors.bagian }}</div>
               </div>
             </div>
             <div class="mt-4 flex justify-end gap-2">
@@ -46,7 +48,11 @@
               <button
                 type="submit"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                :disabled="loading"
               >
+                <span v-if="loading">
+                  <i class="fas fa-spinner fa-spin mr-2"></i>
+                </span>
                 {{ isEditing ? 'Update' : 'Simpan' }}
               </button>
             </div>
@@ -77,7 +83,12 @@
             </button>
           </div>
 
-          <div class="overflow-x-auto">
+          <div v-if="loading && !departments.length" class="text-center py-6">
+            <i class="fas fa-spinner fa-spin text-blue-500 text-2xl"></i>
+            <p class="mt-2 text-gray-600">Memuat data...</p>
+          </div>
+
+          <div v-else class="overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -91,8 +102,8 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                   <tr v-for="(department, index) in paginatedDepartments" :key="department.id" class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap">{{ startIndex + index + 1 }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ department.code }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ department.name }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ department.kode }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ department.bagian }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center">
                       <button
                         @click="showEditForm(department)"
@@ -102,7 +113,7 @@
                         <i class="fas fa-edit"></i>
                       </button>
                       <button
-                        @click="deleteDepartment(department.id)"
+                        @click="confirmDelete(department)"
                         class="text-red-600 hover:text-red-800"
                         title="Hapus"
                       >
@@ -110,7 +121,7 @@
                       </button>
                     </td>
                   </tr>
-                  <tr v-if="filteredDepartments.length === 0">
+                  <tr v-if="filteredDepartments.length === 0 && !loading">
                     <td colspan="4" class="px-6 py-4 text-center text-gray-500">
                       Tidak ada data yang ditemukan
                     </td>
@@ -121,7 +132,7 @@
           </div>
 
           <!-- Pagination -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          <div v-if="filteredDepartments.length > 0" class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
             <div class="text-sm text-gray-500 w-full sm:w-auto text-center sm:text-left">
               Menampilkan {{ startIndex + 1 }} sampai {{ endIndex }} dari {{ filteredDepartments.length }} data
             </div>
@@ -158,11 +169,43 @@
         </div>
       </div>
     </div>
+
+    <!-- Dialog Konfirmasi Hapus -->
+    <div v-if="showDeleteDialog" class="fixed inset-0 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg w-full max-w-md">
+        <div class="p-6">
+          <h3 class="text-lg font-medium text-gray-900">Konfirmasi Hapus</h3>
+          <p class="mt-2 text-gray-600">Apakah Anda yakin ingin menghapus bagian <strong>{{ selectedDepartment?.bagian }}</strong>?</p>
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              @click="showDeleteDialog = false"
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              @click="deleteDepartment"
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
+              :disabled="loading"
+            >
+              <span v-if="loading">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+              </span>
+              Hapus
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { useToast } from '@/Composables/useToast';
+import axios from 'axios';
 
 const props = defineProps({
   show: {
@@ -171,148 +214,174 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['close', 'update:departments']);
+const emit = defineEmits(['close']);
 
+const toast = useToast();
 const showForm = ref(false);
 const isEditing = ref(false);
 const search = ref('');
 const currentPage = ref(1);
-const itemsPerPage = 5;
-
-const departments = ref([
-  { 
-    id: 1, 
-    code: 'B001', 
-    name: 'IT Development'
-  },
-  { 
-    id: 2, 
-    code: 'B002', 
-    name: 'Human Resources'
-  },
-  { 
-    id: 3, 
-    code: 'B003', 
-    name: 'Finance'
-  },
-  { 
-    id: 4, 
-    code: 'B004', 
-    name: 'Marketing'
-  }
-]);
+const itemsPerPage = 10;
+const departments = ref([]);
+const loading = ref(false);
+const errors = ref({});
+const showDeleteDialog = ref(false);
+const selectedDepartment = ref(null);
 
 const form = reactive({
   id: null,
-  code: '',
-  name: ''
+  kode: '',
+  bagian: ''
 });
 
-// Computed properties for filtering and pagination
+// Memuat data bagian dari API
+const fetchDepartments = async () => {
+  loading.value = true;
+  try {
+    const response = await axios.get('/api/bagian');
+    departments.value = response.data.bagian;
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+    toast.error('Gagal memuat data bagian');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Filter bagian berdasarkan pencarian
 const filteredDepartments = computed(() => {
-  return departments.value.filter(department => {
-    const searchLower = search.value.toLowerCase();
-    return (
-      department.code.toLowerCase().includes(searchLower) ||
-      department.name.toLowerCase().includes(searchLower)
-    );
-  });
+  if (!search.value) return departments.value;
+  
+  const searchLower = search.value.toLowerCase();
+  return departments.value.filter(department => 
+    department.kode.toLowerCase().includes(searchLower) ||
+    department.bagian.toLowerCase().includes(searchLower)
+  );
 });
 
-const totalPages = computed(() => {
-  return Math.ceil(filteredDepartments.value.length / itemsPerPage);
-});
-
-const startIndex = computed(() => {
-  return (currentPage.value - 1) * itemsPerPage;
-});
-
+// Paginasi
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage);
 const endIndex = computed(() => {
-  return Math.min(startIndex.value + itemsPerPage, filteredDepartments.value.length);
+  const end = startIndex.value + itemsPerPage;
+  return end > filteredDepartments.value.length ? filteredDepartments.value.length : end;
 });
 
 const paginatedDepartments = computed(() => {
   return filteredDepartments.value.slice(startIndex.value, endIndex.value);
 });
 
-// Methods
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-  }
-};
+const totalPages = computed(() => {
+  return Math.ceil(filteredDepartments.value.length / itemsPerPage);
+});
 
+// Reset halaman saat pencarian berubah
+watch(search, () => {
+  currentPage.value = 1;
+});
+
+// Navigasi paginasi
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
   }
 };
 
-const closeModal = () => {
-  emit('close');
-  resetForm();
-  showForm.value = false;
-  isEditing.value = false;
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
 };
 
-const closeForm = () => {
-  resetForm();
-  showForm.value = false;
-  isEditing.value = false;
-};
-
-const resetForm = () => {
-  form.id = null;
-  form.code = '';
-  form.name = '';
-};
-
+// Menampilkan form tambah
 const showAddForm = () => {
-  resetForm();
-  showForm.value = true;
   isEditing.value = false;
+  errors.value = {};
+  Object.keys(form).forEach(key => {
+    form[key] = key === 'id' ? null : '';
+  });
+  showForm.value = true;
 };
 
+// Menampilkan form edit
 const showEditForm = (department) => {
-  form.id = department.id;
-  form.code = department.code;
-  form.name = department.name;
-  showForm.value = true;
   isEditing.value = true;
+  errors.value = {};
+  Object.keys(form).forEach(key => {
+    form[key] = department[key];
+  });
+  form.id = department.id;
+  showForm.value = true;
 };
 
-const handleSubmit = () => {
-  if (isEditing.value) {
-    // Update existing department
-    const index = departments.value.findIndex(d => d.id === form.id);
-    if (index !== -1) {
-      departments.value[index] = { ...form };
-    }
-  } else {
-    // Add new department
-    const newDepartment = {
-      id: departments.value.length + 1,
-      ...form
-    };
-    departments.value.push(newDepartment);
-  }
-  resetForm();
+// Tutup form
+const closeForm = () => {
   showForm.value = false;
-  isEditing.value = false;
+  errors.value = {};
 };
 
-const deleteDepartment = (id) => {
-  if (confirm('Apakah Anda yakin ingin menghapus bagian ini?')) {
-    departments.value = departments.value.filter(d => d.id !== id);
-    // Reset to first page if current page is empty
-    if (paginatedDepartments.value.length === 0 && currentPage.value > 1) {
-      currentPage.value--;
+// Konfirmasi delete
+const confirmDelete = (department) => {
+  selectedDepartment.value = department;
+  showDeleteDialog.value = true;
+};
+
+// Mengirim data ke API
+const handleSubmit = async () => {
+  loading.value = true;
+  errors.value = {};
+
+  try {
+    if (isEditing.value) {
+      await axios.put(`/api/bagian/${form.id}`, form);
+      toast.success('Data bagian berhasil diperbarui');
+    } else {
+      await axios.post('/api/bagian', form);
+      toast.success('Data bagian berhasil ditambahkan');
     }
+    
+    fetchDepartments(); // Refresh data
+    closeForm();
+  } catch (error) {
+    console.error('Error submitting form:', error);
+    
+    if (error.response && error.response.data && error.response.data.errors) {
+      errors.value = error.response.data.errors;
+    } else {
+      toast.error('Terjadi kesalahan saat menyimpan data');
+    }
+  } finally {
+    loading.value = false;
   }
 };
 
-// Watch for search changes to reset pagination
-watch(search, () => {
-  currentPage.value = 1;
+// Menghapus data
+const deleteDepartment = async () => {
+  if (!selectedDepartment.value) return;
+  
+  loading.value = true;
+  try {
+    await axios.delete(`/api/bagian/${selectedDepartment.value.id}`);
+    toast.success('Data bagian berhasil dihapus');
+    fetchDepartments(); // Refresh data
+    showDeleteDialog.value = false;
+  } catch (error) {
+    console.error('Error deleting department:', error);
+    toast.error('Gagal menghapus data bagian');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Muat data saat komponen muncul
+watch(() => props.show, (newValue) => {
+  if (newValue) {
+    fetchDepartments();
+  }
+});
+
+onMounted(() => {
+  if (props.show) {
+    fetchDepartments();
+  }
 });
 </script> 
