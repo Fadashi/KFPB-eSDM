@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Pegawai\AttendanceController;
+use App\Http\Controllers\RefJabatanController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -56,6 +57,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/references', function () {
         return Inertia::render('Admin/References');
     })->middleware('checkRole:admin')->name('admin.references');
+    
+    // API Route untuk Referensi Jabatan
+    Route::prefix('api')->middleware('checkRole:admin')->group(function () {
+        Route::apiResource('jabatan', RefJabatanController::class);
+    });
 
     //Karyawan
     Route::get('/admin/employees', function () {
