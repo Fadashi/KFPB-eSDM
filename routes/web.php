@@ -6,6 +6,8 @@ use App\Http\Controllers\RefJabatanController;
 use App\Http\Controllers\RefBagianController;
 use App\Http\Controllers\RefSubBagianController;
 use App\Http\Controllers\RefShiftController;
+use App\Http\Controllers\RefLiburController;
+use App\Http\Controllers\RefAgamaController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -67,6 +69,8 @@ Route::middleware(['auth'])->group(function () {
         Route::apiResource('bagian', RefBagianController::class);
         Route::apiResource('subbagian', RefSubBagianController::class);
         Route::apiResource('shift', RefShiftController::class);
+        Route::apiResource('libur', RefLiburController::class);
+        Route::apiResource('agama', RefAgamaController::class);
     });
 
     //Karyawan
@@ -118,6 +122,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/settings', function () {
         return Inertia::render('Admin/Settings');
     })->middleware('checkRole:admin')->name('admin.settings');
+
+    // Route untuk RefLibur
+    Route::get('/holidays', [RefLiburController::class, 'index'])->name('holidays.index');
+    Route::post('/holidays', [RefLiburController::class, 'store'])->name('holidays.store');
+    Route::put('/holidays/{refLibur}', [RefLiburController::class, 'update'])->name('holidays.update');
+    Route::delete('/holidays/{refLibur}', [RefLiburController::class, 'destroy'])->name('holidays.destroy');
 });
 
 

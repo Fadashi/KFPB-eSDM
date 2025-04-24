@@ -3,7 +3,7 @@
     <div class="bg-white rounded-lg w-full max-w-4xl my-8">
       <div class="flex justify-between items-center p-6 border-b">
         <h2 class="text-xl font-semibold">Data Libur</h2>
-        <button @click="closeModal" class="text-gray-500 hover:text-gray-700">
+        <button @click="$emit('close')" class="text-gray-500 hover:text-gray-700">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -23,6 +23,7 @@
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
+                <div v-if="errors.tanggal_libur" class="text-red-500 text-sm mt-1">{{ errors.tanggal_libur }}</div>
               </div>
               <div>
                 <label for="nama_libur" class="block text-sm font-medium text-gray-700">Nama Libur</label>
@@ -33,6 +34,7 @@
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
+                <div v-if="errors.nama_libur" class="text-red-500 text-sm mt-1">{{ errors.nama_libur }}</div>
               </div>
             </div>
             <div class="mt-4 flex justify-end gap-2">
@@ -46,7 +48,11 @@
               <button
                 type="submit"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                :disabled="loading"
               >
+                <span v-if="loading">
+                  <i class="fas fa-spinner fa-spin mr-2"></i>
+                </span>
                 {{ isEditing ? 'Update' : 'Simpan' }}
               </button>
             </div>
@@ -77,7 +83,12 @@
             </button>
           </div>
 
-          <div class="overflow-x-auto">
+          <div v-if="loading && !holidays.length" class="text-center py-6">
+            <i class="fas fa-spinner fa-spin text-blue-500 text-2xl"></i>
+            <p class="mt-2 text-gray-600">Memuat data...</p>
+          </div>
+
+          <div v-else class="overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -102,7 +113,7 @@
                         <i class="fas fa-edit"></i>
                       </button>
                       <button
-                        @click="deleteHoliday(libur.id)"
+                        @click="confirmDelete(libur)"
                         class="text-red-600 hover:text-red-800"
                         title="Hapus"
                       >
@@ -110,7 +121,7 @@
                       </button>
                     </td>
                   </tr>
-                  <tr v-if="filteredHolidays.length === 0">
+                  <tr v-if="filteredHolidays.length === 0 && !loading">
                     <td colspan="4" class="px-6 py-4 text-center text-gray-500">
                       Tidak ada data yang ditemukan
                     </td>
@@ -121,7 +132,7 @@
           </div>
 
           <!-- Pagination -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          <div v-if="filteredHolidays.length > 0" class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
             <div class="text-sm text-gray-500 w-full sm:w-auto text-center sm:text-left">
               Menampilkan {{ startIndex + 1 }} sampai {{ endIndex }} dari {{ filteredHolidays.length }} data
             </div>
@@ -158,11 +169,43 @@
         </div>
       </div>
     </div>
+
+    <!-- Dialog Konfirmasi Hapus -->
+    <div v-if="showDeleteDialog" class="fixed inset-0 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg w-full max-w-md">
+        <div class="p-6">
+          <h3 class="text-lg font-medium text-gray-900">Konfirmasi Hapus</h3>
+          <p class="mt-2 text-gray-600">Apakah Anda yakin ingin menghapus libur <strong>{{ selectedHoliday?.nama_libur }}</strong>?</p>
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              @click="showDeleteDialog = false"
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              @click="deleteHoliday"
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
+              :disabled="loading"
+            >
+              <span v-if="loading">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+              </span>
+              Hapus
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { useToast } from '@/Composables/useToast';
+import axios from 'axios';
 
 const props = defineProps({
   show: {
@@ -173,29 +216,17 @@ const props = defineProps({
 
 const emit = defineEmits(['close']);
 
+const toast = useToast();
 const showForm = ref(false);
 const isEditing = ref(false);
 const search = ref('');
 const currentPage = ref(1);
-const itemsPerPage = 5;
-
-const holidays = ref([
-  {
-    id: 1,
-    tanggal_libur: '2024-01-01',
-    nama_libur: 'Tahun Baru'
-  },
-  {
-    id: 2,
-    tanggal_libur: '2024-04-10',
-    nama_libur: 'Hari Raya Idul Fitri'
-  },
-  {
-    id: 3,
-    tanggal_libur: '2024-08-17',
-    nama_libur: 'Hari Kemerdekaan'
-  }
-]);
+const itemsPerPage = 10;
+const holidays = ref([]);
+const loading = ref(false);
+const errors = ref({});
+const showDeleteDialog = ref(false);
+const selectedHoliday = ref(null);
 
 const form = reactive({
   id: null,
@@ -213,111 +244,153 @@ const formatDate = (date) => {
   });
 };
 
-// Computed properties for filtering and pagination
+// Memuat data libur dari API
+const fetchHolidays = async () => {
+  loading.value = true;
+  try {
+    const response = await axios.get('/api/libur');
+    holidays.value = response.data.libur;
+  } catch (error) {
+    console.error('Error fetching holidays:', error);
+    toast.error('Gagal memuat data libur');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Filter libur berdasarkan pencarian
 const filteredHolidays = computed(() => {
-  return holidays.value.filter(holiday => {
-    const searchLower = search.value.toLowerCase();
-    return (
-      holiday.nama_libur.toLowerCase().includes(searchLower) ||
-      formatDate(holiday.tanggal_libur).toLowerCase().includes(searchLower)
-    );
-  });
+  if (!search.value) return holidays.value;
+  
+  const searchLower = search.value.toLowerCase();
+  return holidays.value.filter(holiday => 
+    holiday.nama_libur.toLowerCase().includes(searchLower) ||
+    formatDate(holiday.tanggal_libur).toLowerCase().includes(searchLower)
+  );
 });
 
-const totalPages = computed(() => {
-  return Math.ceil(filteredHolidays.value.length / itemsPerPage);
-});
-
-const startIndex = computed(() => {
-  return (currentPage.value - 1) * itemsPerPage;
-});
-
+// Paginasi
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage);
 const endIndex = computed(() => {
-  return Math.min(startIndex.value + itemsPerPage, filteredHolidays.value.length);
+  const end = startIndex.value + itemsPerPage;
+  return end > filteredHolidays.value.length ? filteredHolidays.value.length : end;
 });
 
 const paginatedHolidays = computed(() => {
   return filteredHolidays.value.slice(startIndex.value, endIndex.value);
 });
 
-// Methods
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-  }
-};
+const totalPages = computed(() => {
+  return Math.ceil(filteredHolidays.value.length / itemsPerPage);
+});
 
+// Reset halaman saat pencarian berubah
+watch(search, () => {
+  currentPage.value = 1;
+});
+
+// Navigasi paginasi
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
   }
 };
 
-const closeModal = () => {
-  emit('close');
-  resetForm();
-  showForm.value = false;
-  isEditing.value = false;
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
 };
 
-const closeForm = () => {
-  resetForm();
-  showForm.value = false;
+// Menampilkan form tambah
+const showAddForm = () => {
   isEditing.value = false;
-};
-
-const resetForm = () => {
+  errors.value = {};
   form.id = null;
   form.tanggal_libur = '';
   form.nama_libur = '';
-};
-
-const showAddForm = () => {
-  resetForm();
   showForm.value = true;
-  isEditing.value = false;
 };
 
+// Menampilkan form edit
 const showEditForm = (holiday) => {
+  isEditing.value = true;
+  errors.value = {};
   form.id = holiday.id;
   form.tanggal_libur = holiday.tanggal_libur;
   form.nama_libur = holiday.nama_libur;
   showForm.value = true;
-  isEditing.value = true;
 };
 
-const handleSubmit = () => {
-  if (isEditing.value) {
-    // Update existing holiday
-    const index = holidays.value.findIndex(h => h.id === form.id);
-    if (index !== -1) {
-      holidays.value[index] = { ...form };
-    }
-  } else {
-    // Add new holiday
-    const newHoliday = {
-      id: holidays.value.length + 1,
-      ...form
-    };
-    holidays.value.push(newHoliday);
-  }
-  resetForm();
+// Tutup form
+const closeForm = () => {
   showForm.value = false;
-  isEditing.value = false;
+  errors.value = {};
 };
 
-const deleteHoliday = (id) => {
-  if (confirm('Apakah Anda yakin ingin menghapus data libur ini?')) {
-    holidays.value = holidays.value.filter(h => h.id !== id);
-    // Reset to first page if current page is empty
-    if (paginatedHolidays.value.length === 0 && currentPage.value > 1) {
-      currentPage.value--;
+// Konfirmasi delete
+const confirmDelete = (holiday) => {
+  selectedHoliday.value = holiday;
+  showDeleteDialog.value = true;
+};
+
+// Mengirim data ke API
+const handleSubmit = async () => {
+  loading.value = true;
+  errors.value = {};
+
+  try {
+    if (isEditing.value) {
+      await axios.put(`/api/libur/${form.id}`, form);
+      toast.success('Data libur berhasil diperbarui');
+    } else {
+      await axios.post('/api/libur', form);
+      toast.success('Data libur berhasil ditambahkan');
     }
+    
+    fetchHolidays(); // Refresh data
+    closeForm();
+  } catch (error) {
+    console.error('Error submitting form:', error);
+    
+    if (error.response && error.response.data && error.response.data.errors) {
+      errors.value = error.response.data.errors;
+    } else {
+      toast.error('Terjadi kesalahan saat menyimpan data');
+    }
+  } finally {
+    loading.value = false;
   }
 };
 
-// Watch for search changes to reset pagination
-watch(search, () => {
-  currentPage.value = 1;
+// Menghapus data
+const deleteHoliday = async () => {
+  if (!selectedHoliday.value) return;
+  
+  loading.value = true;
+  try {
+    await axios.delete(`/api/libur/${selectedHoliday.value.id}`);
+    toast.success('Data libur berhasil dihapus');
+    fetchHolidays(); // Refresh data
+    showDeleteDialog.value = false;
+  } catch (error) {
+    console.error('Error deleting holiday:', error);
+    toast.error('Gagal menghapus data libur');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Muat data saat komponen muncul
+watch(() => props.show, (newValue) => {
+  if (newValue) {
+    fetchHolidays();
+  }
+});
+
+onMounted(() => {
+  if (props.show) {
+    fetchHolidays();
+  }
 });
 </script> 
