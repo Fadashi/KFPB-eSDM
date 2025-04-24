@@ -8,6 +8,7 @@ use App\Http\Controllers\RefSubBagianController;
 use App\Http\Controllers\RefShiftController;
 use App\Http\Controllers\RefLiburController;
 use App\Http\Controllers\RefAgamaController;
+use App\Http\Controllers\RefCutiController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -71,6 +72,7 @@ Route::middleware(['auth'])->group(function () {
         Route::apiResource('shift', RefShiftController::class);
         Route::apiResource('libur', RefLiburController::class);
         Route::apiResource('agama', RefAgamaController::class);
+        Route::apiResource('cuti', RefCutiController::class);
     });
 
     //Karyawan

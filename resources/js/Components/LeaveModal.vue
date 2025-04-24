@@ -1,9 +1,9 @@
 <template>
   <div v-show="show" class="fixed inset-0 overflow-y-auto bg-black bg-opacity-50 flex items-start justify-center z-50 p-4">
-    <div class="bg-white rounded-lg w-full max-w-4xl my-8">
+    <div class="bg-white rounded-lg w-full max-w-2xl my-8">
       <div class="flex justify-between items-center p-6 border-b">
         <h2 class="text-xl font-semibold">Data Cuti</h2>
-        <button @click="closeModal" class="text-gray-500 hover:text-gray-700">
+        <button @click="$emit('close')" class="text-gray-500 hover:text-gray-700">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -13,28 +13,28 @@
         <div v-if="showForm" class="p-6 border-b">
           <h3 class="text-lg font-medium mb-4">{{ isEditing ? 'Edit Data Cuti' : 'Tambah Data Cuti' }}</h3>
           <form @submit.prevent="handleSubmit">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="nama_cuti" class="block text-sm font-medium text-gray-700">Nama Cuti</label>
-                <input
-                  type="text"
-                  id="nama_cuti"
-                  v-model="form.nama_cuti"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label for="jatah_cuti" class="block text-sm font-medium text-gray-700">Jatah Cuti (Hari)</label>
-                <input
-                  type="number"
-                  id="jatah_cuti"
-                  v-model="form.jatah_cuti"
-                  min="0"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
-                />
-              </div>
+            <div>
+              <label for="nama_cuti" class="block text-sm font-medium text-gray-700">Nama Cuti</label>
+              <input
+                type="text"
+                id="nama_cuti"
+                v-model="form.nama_cuti"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                required
+              />
+              <div v-if="errors.nama_cuti" class="text-red-500 text-sm mt-1">{{ errors.nama_cuti }}</div>
+            </div>
+            <div class="mt-4">
+              <label for="jatah_cuti" class="block text-sm font-medium text-gray-700">Jatah Cuti (Hari)</label>
+              <input
+                type="number"
+                id="jatah_cuti"
+                v-model="form.jatah_cuti"
+                min="0"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                required
+              />
+              <div v-if="errors.jatah_cuti" class="text-red-500 text-sm mt-1">{{ errors.jatah_cuti }}</div>
             </div>
             <div class="mt-4 flex justify-end gap-2">
               <button
@@ -47,7 +47,11 @@
               <button
                 type="submit"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                :disabled="loading"
               >
+                <span v-if="loading">
+                  <i class="fas fa-spinner fa-spin mr-2"></i>
+                </span>
                 {{ isEditing ? 'Update' : 'Simpan' }}
               </button>
             </div>
@@ -78,22 +82,27 @@
             </button>
           </div>
 
-          <div class="overflow-x-auto">
+          <div v-if="loading && !leaves.length" class="text-center py-6">
+            <i class="fas fa-spinner fa-spin text-blue-500 text-2xl"></i>
+            <p class="mt-2 text-gray-600">Memuat data...</p>
+          </div>
+
+          <div v-else class="overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuti</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Cuti</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jatah Cuti</th>
-                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Control</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="cuti in paginatedLeaves" :key="cuti.id" class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">{{ cuti.id }}</td>
+                  <tr v-for="(cuti, index) in paginatedLeaves" :key="cuti.id" class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">{{ startIndex + index + 1 }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ cuti.nama_cuti }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ cuti.jatah_cuti }} Hari</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ cuti.jatah_cuti }} hari</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center">
                       <button
                         @click="showEditForm(cuti)"
@@ -103,7 +112,7 @@
                         <i class="fas fa-edit"></i>
                       </button>
                       <button
-                        @click="deleteLeave(cuti.id)"
+                        @click="confirmDelete(cuti)"
                         class="text-red-600 hover:text-red-800"
                         title="Hapus"
                       >
@@ -111,7 +120,7 @@
                       </button>
                     </td>
                   </tr>
-                  <tr v-if="filteredLeaves.length === 0">
+                  <tr v-if="filteredLeaves.length === 0 && !loading">
                     <td colspan="4" class="px-6 py-4 text-center text-gray-500">
                       Tidak ada data yang ditemukan
                     </td>
@@ -122,7 +131,7 @@
           </div>
 
           <!-- Pagination -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          <div v-if="filteredLeaves.length > 0" class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
             <div class="text-sm text-gray-500 w-full sm:w-auto text-center sm:text-left">
               Menampilkan {{ startIndex + 1 }} sampai {{ endIndex }} dari {{ filteredLeaves.length }} data
             </div>
@@ -159,11 +168,43 @@
         </div>
       </div>
     </div>
+
+    <!-- Dialog Konfirmasi Hapus -->
+    <div v-if="showDeleteDialog" class="fixed inset-0 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg w-full max-w-md">
+        <div class="p-6">
+          <h3 class="text-lg font-medium text-gray-900">Konfirmasi Hapus</h3>
+          <p class="mt-2 text-gray-600">Apakah Anda yakin ingin menghapus cuti <strong>{{ selectedLeave?.nama_cuti }}</strong>?</p>
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              @click="showDeleteDialog = false"
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              @click="deleteLeave"
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
+              :disabled="loading"
+            >
+              <span v-if="loading">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+              </span>
+              Hapus
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { useToast } from '@/Composables/useToast';
+import axios from 'axios';
 
 const props = defineProps({
   show: {
@@ -174,146 +215,170 @@ const props = defineProps({
 
 const emit = defineEmits(['close']);
 
+const toast = useToast();
 const showForm = ref(false);
 const isEditing = ref(false);
 const search = ref('');
 const currentPage = ref(1);
-const itemsPerPage = 5;
-
-const leaves = ref([
-  {
-    id: 1,
-    nama_cuti: 'Cuti Tahunan',
-    jatah_cuti: 12
-  },
-  {
-    id: 2,
-    nama_cuti: 'Cuti Melahirkan',
-    jatah_cuti: 90
-  },
-  {
-    id: 3,
-    nama_cuti: 'Cuti Sakit',
-    jatah_cuti: 14
-  },
-  {
-    id: 4,
-    nama_cuti: 'Cuti Penting',
-    jatah_cuti: 7
-  }
-]);
+const itemsPerPage = 10;
+const leaves = ref([]);
+const loading = ref(false);
+const errors = ref({});
+const showDeleteDialog = ref(false);
+const selectedLeave = ref(null);
 
 const form = reactive({
   id: null,
   nama_cuti: '',
-  jatah_cuti: ''
+  jatah_cuti: 0
 });
 
-// Computed properties for filtering and pagination
+// Memuat data cuti dari API
+const fetchLeaves = async () => {
+  loading.value = true;
+  try {
+    const response = await axios.get('/api/cuti');
+    leaves.value = response.data.cuti;
+  } catch (error) {
+    console.error('Error fetching leaves:', error);
+    toast.error('Gagal memuat data cuti');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Filter cuti berdasarkan pencarian
 const filteredLeaves = computed(() => {
-  return leaves.value.filter(leave => {
-    const searchLower = search.value.toLowerCase();
-    return (
-      leave.nama_cuti.toLowerCase().includes(searchLower) ||
-      leave.jatah_cuti.toString().includes(searchLower)
-    );
-  });
+  if (!search.value) return leaves.value;
+  
+  const searchLower = search.value.toLowerCase();
+  return leaves.value.filter(leave => 
+    leave.nama_cuti.toLowerCase().includes(searchLower)
+  );
 });
 
-const totalPages = computed(() => {
-  return Math.ceil(filteredLeaves.value.length / itemsPerPage);
-});
-
-const startIndex = computed(() => {
-  return (currentPage.value - 1) * itemsPerPage;
-});
-
+// Paginasi
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage);
 const endIndex = computed(() => {
-  return Math.min(startIndex.value + itemsPerPage, filteredLeaves.value.length);
+  const end = startIndex.value + itemsPerPage;
+  return end > filteredLeaves.value.length ? filteredLeaves.value.length : end;
 });
 
 const paginatedLeaves = computed(() => {
   return filteredLeaves.value.slice(startIndex.value, endIndex.value);
 });
 
-// Methods
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-  }
-};
+const totalPages = computed(() => {
+  return Math.ceil(filteredLeaves.value.length / itemsPerPage);
+});
 
+// Reset halaman saat pencarian berubah
+watch(search, () => {
+  currentPage.value = 1;
+});
+
+// Navigasi paginasi
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
   }
 };
 
-const closeModal = () => {
-  emit('close');
-  resetForm();
-  showForm.value = false;
-  isEditing.value = false;
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
 };
 
-const closeForm = () => {
-  resetForm();
-  showForm.value = false;
+// Menampilkan form tambah
+const showAddForm = () => {
   isEditing.value = false;
-};
-
-const resetForm = () => {
+  errors.value = {};
   form.id = null;
   form.nama_cuti = '';
-  form.jatah_cuti = '';
-};
-
-const showAddForm = () => {
-  resetForm();
+  form.jatah_cuti = 0;
   showForm.value = true;
-  isEditing.value = false;
 };
 
+// Menampilkan form edit
 const showEditForm = (leave) => {
+  isEditing.value = true;
+  errors.value = {};
   form.id = leave.id;
   form.nama_cuti = leave.nama_cuti;
   form.jatah_cuti = leave.jatah_cuti;
   showForm.value = true;
-  isEditing.value = true;
 };
 
-const handleSubmit = () => {
-  if (isEditing.value) {
-    // Update existing leave
-    const index = leaves.value.findIndex(l => l.id === form.id);
-    if (index !== -1) {
-      leaves.value[index] = { ...form };
-    }
-  } else {
-    // Add new leave
-    const newLeave = {
-      id: leaves.value.length + 1,
-      ...form
-    };
-    leaves.value.push(newLeave);
-  }
-  resetForm();
+// Tutup form
+const closeForm = () => {
   showForm.value = false;
-  isEditing.value = false;
+  errors.value = {};
 };
 
-const deleteLeave = (id) => {
-  if (confirm('Apakah Anda yakin ingin menghapus data cuti ini?')) {
-    leaves.value = leaves.value.filter(l => l.id !== id);
-    // Reset to first page if current page is empty
-    if (paginatedLeaves.value.length === 0 && currentPage.value > 1) {
-      currentPage.value--;
+// Konfirmasi delete
+const confirmDelete = (leave) => {
+  selectedLeave.value = leave;
+  showDeleteDialog.value = true;
+};
+
+// Mengirim data ke API
+const handleSubmit = async () => {
+  loading.value = true;
+  errors.value = {};
+
+  try {
+    if (isEditing.value) {
+      await axios.put(`/api/cuti/${form.id}`, form);
+      toast.success('Data cuti berhasil diperbarui');
+    } else {
+      await axios.post('/api/cuti', form);
+      toast.success('Data cuti berhasil ditambahkan');
     }
+    
+    fetchLeaves(); // Refresh data
+    closeForm();
+  } catch (error) {
+    console.error('Error submitting form:', error);
+    
+    if (error.response && error.response.data && error.response.data.errors) {
+      errors.value = error.response.data.errors;
+    } else {
+      toast.error('Terjadi kesalahan saat menyimpan data');
+    }
+  } finally {
+    loading.value = false;
   }
 };
 
-// Watch for search changes to reset pagination
-watch(search, () => {
-  currentPage.value = 1;
+// Menghapus data
+const deleteLeave = async () => {
+  if (!selectedLeave.value) return;
+  
+  loading.value = true;
+  try {
+    await axios.delete(`/api/cuti/${selectedLeave.value.id}`);
+    toast.success('Data cuti berhasil dihapus');
+    fetchLeaves(); // Refresh data
+    showDeleteDialog.value = false;
+  } catch (error) {
+    console.error('Error deleting leave:', error);
+    toast.error('Gagal menghapus data cuti');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Muat data saat komponen muncul
+watch(() => props.show, (newValue) => {
+  if (newValue) {
+    fetchLeaves();
+  }
+});
+
+onMounted(() => {
+  if (props.show) {
+    fetchLeaves();
+  }
 });
 </script> 
