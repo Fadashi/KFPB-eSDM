@@ -23,6 +23,7 @@
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
+                <div v-if="errors.jabatan_fungsional" class="text-red-500 text-sm mt-1">{{ errors.jabatan_fungsional }}</div>
               </div>
               <div>
                 <label for="kelas" class="block text-sm font-medium text-gray-700">Kelas</label>
@@ -31,8 +32,8 @@
                   id="kelas"
                   v-model="form.kelas"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
                 />
+                <div v-if="errors.kelas" class="text-red-500 text-sm mt-1">{{ errors.kelas }}</div>
               </div>
               <div>
                 <label for="umur_pensiun" class="block text-sm font-medium text-gray-700">Umur Pensiun</label>
@@ -43,8 +44,8 @@
                   min="0"
                   max="100"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
                 />
+                <div v-if="errors.umur_pensiun" class="text-red-500 text-sm mt-1">{{ errors.umur_pensiun }}</div>
               </div>
             </div>
             <div class="mt-4 flex justify-end gap-2">
@@ -58,7 +59,9 @@
               <button
                 type="submit"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                :disabled="loading"
               >
+                <span v-if="loading"><i class="fas fa-spinner fa-spin mr-2"></i></span>
                 {{ isEditing ? 'Update' : 'Simpan' }}
               </button>
             </div>
@@ -89,7 +92,11 @@
             </button>
           </div>
 
-          <div class="overflow-x-auto">
+          <div v-if="loadingData" class="flex justify-center items-center py-8">
+            <i class="fas fa-spinner fa-spin text-blue-600 text-2xl"></i>
+          </div>
+
+          <div v-else class="overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -106,7 +113,7 @@
                     <td class="px-6 py-4 whitespace-nowrap">{{ position.id }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ position.jabatan_fungsional }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ position.kelas }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ position.umur_pensiun }} Tahun</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ position.umur_pensiun }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center">
                       <button
                         @click="showEditForm(position)"
@@ -135,7 +142,7 @@
           </div>
 
           <!-- Pagination -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          <div v-if="!loadingData && filteredPositions.length > 0" class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
             <div class="text-sm text-gray-500 w-full sm:w-auto text-center sm:text-left">
               Menampilkan {{ startIndex + 1 }} sampai {{ endIndex }} dari {{ filteredPositions.length }} data
             </div>
@@ -176,7 +183,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
+import axios from 'axios';
 
 const props = defineProps({
   show: {
@@ -192,39 +200,16 @@ const isEditing = ref(false);
 const search = ref('');
 const currentPage = ref(1);
 const itemsPerPage = 5;
-
-const positions = ref([
-  {
-    id: 1,
-    jabatan_fungsional: 'Peneliti Utama',
-    kelas: 'Kelas 1',
-    umur_pensiun: 65
-  },
-  {
-    id: 2,
-    jabatan_fungsional: 'Peneliti Madya',
-    kelas: 'Kelas 2',
-    umur_pensiun: 60
-  },
-  {
-    id: 3,
-    jabatan_fungsional: 'Peneliti Muda',
-    kelas: 'Kelas 3',
-    umur_pensiun: 58
-  },
-  {
-    id: 4,
-    jabatan_fungsional: 'Peneliti Pertama',
-    kelas: 'Kelas 4',
-    umur_pensiun: 58
-  }
-]);
+const positions = ref([]);
+const loadingData = ref(true);
+const loading = ref(false);
+const errors = reactive({});
 
 const form = reactive({
   id: null,
   jabatan_fungsional: '',
   kelas: '',
-  umur_pensiun: ''
+  umur_pensiun: null
 });
 
 // Computed properties for filtering and pagination
@@ -232,10 +217,10 @@ const filteredPositions = computed(() => {
   return positions.value.filter(position => {
     const searchLower = search.value.toLowerCase();
     return (
-      position.jabatan_fungsional.toLowerCase().includes(searchLower) ||
-      position.kelas.toLowerCase().includes(searchLower) ||
-      position.umur_pensiun.toString().includes(searchLower) ||
-      position.id.toString().includes(searchLower)
+      position.jabatan_fungsional?.toLowerCase().includes(searchLower) ||
+      position.kelas?.toLowerCase().includes(searchLower) ||
+      position.id.toString().includes(searchLower) ||
+      (position.umur_pensiun && position.umur_pensiun.toString().includes(searchLower))
     );
   });
 });
@@ -255,6 +240,19 @@ const endIndex = computed(() => {
 const paginatedPositions = computed(() => {
   return filteredPositions.value.slice(startIndex.value, endIndex.value);
 });
+
+// Fetch data
+const fetchPositions = async () => {
+  loadingData.value = true;
+  try {
+    const response = await axios.get('/api/jabatan-fungsional');
+    positions.value = response.data.jabatan_fungsional;
+  } catch (error) {
+    console.error('Error fetching positions:', error);
+  } finally {
+    loadingData.value = false;
+  }
+};
 
 // Methods
 const prevPage = () => {
@@ -286,7 +284,8 @@ const resetForm = () => {
   form.id = null;
   form.jabatan_fungsional = '';
   form.kelas = '';
-  form.umur_pensiun = '';
+  form.umur_pensiun = null;
+  Object.keys(errors).forEach(key => delete errors[key]);
 };
 
 const showAddForm = () => {
@@ -304,32 +303,54 @@ const showEditForm = (position) => {
   isEditing.value = true;
 };
 
-const handleSubmit = () => {
-  if (isEditing.value) {
-    // Update existing position
-    const index = positions.value.findIndex(p => p.id === form.id);
-    if (index !== -1) {
-      positions.value[index] = { ...form };
+const handleSubmit = async () => {
+  loading.value = true;
+  Object.keys(errors).forEach(key => delete errors[key]);
+  
+  try {
+    if (isEditing.value) {
+      // Update existing position
+      const response = await axios.put(`/api/jabatan-fungsional/${form.id}`, form);
+      // Replace the updated position in the positions array
+      const index = positions.value.findIndex(p => p.id === form.id);
+      if (index !== -1) {
+        positions.value[index] = response.data.jabatan_fungsional;
+      }
+    } else {
+      // Add new position
+      const response = await axios.post('/api/jabatan-fungsional', form);
+      positions.value.push(response.data.jabatan_fungsional);
     }
-  } else {
-    // Add new position
-    const newPosition = {
-      id: positions.value.length + 1,
-      ...form
-    };
-    positions.value.push(newPosition);
+    
+    resetForm();
+    showForm.value = false;
+    isEditing.value = false;
+  } catch (error) {
+    if (error.response && error.response.data && error.response.data.errors) {
+      // Handle validation errors
+      Object.assign(errors, error.response.data.errors);
+    } else {
+      console.error('Error submitting form:', error);
+      alert('Terjadi kesalahan saat menyimpan data');
+    }
+  } finally {
+    loading.value = false;
   }
-  resetForm();
-  showForm.value = false;
-  isEditing.value = false;
 };
 
-const deletePosition = (id) => {
+const deletePosition = async (id) => {
   if (confirm('Apakah Anda yakin ingin menghapus jabatan fungsional ini?')) {
-    positions.value = positions.value.filter(p => p.id !== id);
-    // Reset to first page if current page is empty
-    if (paginatedPositions.value.length === 0 && currentPage.value > 1) {
-      currentPage.value--;
+    try {
+      await axios.delete(`/api/jabatan-fungsional/${id}`);
+      positions.value = positions.value.filter(p => p.id !== id);
+      
+      // Reset to first page if current page is empty
+      if (paginatedPositions.value.length === 0 && currentPage.value > 1) {
+        currentPage.value--;
+      }
+    } catch (error) {
+      console.error('Error deleting position:', error);
+      alert('Terjadi kesalahan saat menghapus data');
     }
   }
 };
@@ -337,5 +358,19 @@ const deletePosition = (id) => {
 // Watch for search changes to reset pagination
 watch(search, () => {
   currentPage.value = 1;
+});
+
+// Watch for show prop to fetch data
+watch(() => props.show, (newValue) => {
+  if (newValue) {
+    fetchPositions();
+  }
+});
+
+// Fetch data on mount if modal is shown
+onMounted(() => {
+  if (props.show) {
+    fetchPositions();
+  }
 });
 </script> 
