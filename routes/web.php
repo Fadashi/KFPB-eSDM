@@ -15,6 +15,7 @@ use App\Http\Controllers\RefJabatanFungsionalController;
 use App\Http\Controllers\RefEselonController;
 use App\Http\Controllers\RefBerkasController;
 use App\Http\Controllers\RefPayrollController;
+use App\Http\Controllers\EmployeeController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -88,24 +89,17 @@ Route::middleware(['auth'])->group(function () {
     });
 
     //Karyawan
-    Route::get('/admin/employees', function () {
-        return Inertia::render('Admin/Karyawan/Employees');
-    })->middleware('checkRole:admin')->name('admin.employees');
-
-    Route::get('/admin/employees/create', function () {
-        return Inertia::render('Admin/Karyawan/AddEmployees');
-    })->middleware('checkRole:admin')->name('admin.employees.create');
-
-    Route::post('/admin/employees/store', function () {
-        // Logic untuk menyimpan data karyawan
-        return redirect()->route('admin.employees');
-    })->middleware('checkRole:admin')->name('admin.employees.store');
-
-    Route::get('/admin/employees/{id}/edit', function ($id) {
-        return Inertia::render('Admin/Karyawan/EditEmployees', [
-            'employeeId' => $id
-        ]);
-    })->middleware('checkRole:admin')->name('admin.employees.edit');
+    Route::get('/admin/employees', [EmployeeController::class, 'index'])->middleware('checkRole:admin')->name('admin.employees');
+    Route::get('/admin/employees/create', [EmployeeController::class, 'create'])->middleware('checkRole:admin')->name('admin.employees.create');
+    Route::post('/admin/employees/store', [EmployeeController::class, 'store'])->middleware('checkRole:admin')->name('admin.employees.store');
+    Route::get('/admin/employees/{id}', [EmployeeController::class, 'show'])->middleware('checkRole:admin')->name('admin.employees.show');
+    Route::get('/admin/employees/{id}/edit', [EmployeeController::class, 'edit'])->middleware('checkRole:admin')->name('admin.employees.edit');
+    Route::put('/admin/employees/{id}', [EmployeeController::class, 'update'])->middleware('checkRole:admin')->name('admin.employees.update');
+    Route::delete('/admin/employees/{id}', [EmployeeController::class, 'destroy'])->middleware('checkRole:admin')->name('admin.employees.destroy');
+    
+    // API untuk dropdown dinamis
+    Route::get('/api/provinces/{id}/cities', [EmployeeController::class, 'getCities'])->name('api.cities');
+    Route::get('/api/cities/{id}/districts', [EmployeeController::class, 'getDistricts'])->name('api.districts');
 
     //Laporan
     Route::get('/admin/report', function () {

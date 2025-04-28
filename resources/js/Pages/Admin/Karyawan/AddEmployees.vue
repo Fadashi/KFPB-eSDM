@@ -1,9 +1,26 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { ref, watch, onMounted } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
-const formData = ref({
+const props = defineProps({
+    provinces: Array,
+    departments: Array,
+    subDepartments: Array,
+    banks: Array,
+    religions: Array,
+    employeeTypes: Array,
+    functionalPositions: Array,
+    structuralPositions: Array,
+    positions: Array,
+    eselons: Array,
+    errors: Object
+});
+
+const cities = ref([]);
+const districts = ref([]);
+
+const form = useForm({
     photo: null,
     photoPreview: null,
     nip: '',
@@ -31,94 +48,161 @@ const formData = ref({
     jamsostek: '',
     dplk: '',
     inhealth: '',
-    religion: '',
-    employee_type: '',
+    religion_id: '',
+    employee_type_id: '',
     grade: '',
-    functional_position: '',
-    structural_position: '',
-    sub_department: '',
-    eselon: '',
+    functional_position_id: '',
+    structural_position_id: '',
+    sub_department_id: '',
+    eselon_id: '',
     marital_status: '',
-    employee_status: '',
+    employee_status: 'Aktif',
     join_date: '',
     contract_end_date: '',
     education: '',
     position_date: '',
-    position: '',
-    status: '',
+    position_id: '',
+    status: 'Aktif',
     // Data Akun
     username: '',
     password: '',
-    role: ''
+    role: 'pegawai'
 });
-
-const provinces = ref([]);
-const cities = ref([]);
-const districts = ref([]);
-const departments = ref([]);
-const banks = ref([]);
-const religions = ref([
-    { id: 1, name: 'Islam' },
-    { id: 2, name: 'Kristen' },
-    { id: 3, name: 'Katolik' },
-    { id: 4, name: 'Hindu' },
-    { id: 5, name: 'Budha' },
-    { id: 6, name: 'Konghucu' }
-]);
-const employeeTypes = ref([
-    { id: 1, name: 'PNS' },
-    { id: 2, name: 'CPNS' },
-    { id: 3, name: 'Kontrak' }
-]);
-const maritalStatuses = ref([
-    { id: 1, name: 'Belum Kawin' },
-    { id: 2, name: 'Kawin' },
-    { id: 3, name: 'Cerai Hidup' },
-    { id: 4, name: 'Cerai Mati' }
-]);
-const employeeStatuses = ref([
-    { id: 1, name: 'Aktif' },
-    { id: 2, name: 'Non Aktif' },
-    { id: 3, name: 'Cuti' }
-]);
-const educations = ref([
-    { id: 1, name: 'SD' },
-    { id: 2, name: 'SMP' },
-    { id: 3, name: 'SMA' },
-    { id: 4, name: 'D3' },
-    { id: 5, name: 'S1' },
-    { id: 6, name: 'S2' },
-    { id: 7, name: 'S3' }
-]);
-
-const roles = ref([
-    { id: 1, name: 'Admin' },
-    { id: 2, name: 'User' },
-    { id: 3, name: 'Manager' }
-]);
 
 const handleFileChange = (event) => {
     const file = event.target.files[0];
-    formData.value.photo = file;
+    form.photo = file;
+
+    // Validasi ukuran file (maksimal 2MB)
+    if (file && file.size > 2 * 1024 * 1024) {
+        alert('Ukuran file tidak boleh lebih dari 2MB');
+        event.target.value = '';
+        form.photo = null;
+        form.photoPreview = null;
+        return;
+    }
 
     // Create preview URL
     if (file) {
-        formData.value.photoPreview = URL.createObjectURL(file);
+        form.photoPreview = URL.createObjectURL(file);
     } else {
-        formData.value.photoPreview = null;
+        form.photoPreview = null;
     }
 };
 
-const submitForm = () => {
-    const formDataToSubmit = new FormData();
-    Object.keys(formData.value).forEach(key => {
-        formDataToSubmit.append(key, formData.value[key]);
-    });
-
-    router.post('/admin/employees/store', formDataToSubmit, {
-        onSuccess: () => {
-            router.visit('/admin/employees');
+// Mengambil data kota ketika provinsi berubah
+watch(() => form.province_id, async (newValue) => {
+    if (newValue) {
+        form.city_id = '';
+        form.district_id = '';
+        districts.value = [];
+        cities.value = []; // Reset cities array
+        
+        // Ambil data kota dari API
+        try {
+            console.log('Fetching cities for province ID:', newValue);
+            const response = await fetch(`/api/provinces/${newValue}/cities`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Received cities:', data.cities);
+            
+            if (data.cities && Array.isArray(data.cities)) {
+                // Gunakan spread operator untuk membuat array baru agar Vue mendeteksi perubahan
+                cities.value = [...data.cities];
+                console.log('Cities array updated:', cities.value);
+            } else {
+                console.error('Invalid cities data format:', data);
+                cities.value = [];
+            }
+        } catch (error) {
+            console.error('Error fetching cities:', error);
+            cities.value = [];
         }
+    } else {
+        cities.value = [];
+        districts.value = [];
+    }
+});
+
+// Mengambil data kecamatan ketika kota berubah
+watch(() => form.city_id, async (newValue) => {
+    if (newValue) {
+        form.district_id = '';
+        districts.value = [];
+        
+        // Ambil data kecamatan dari API
+        try {
+            console.log('Fetching districts for city ID:', newValue);
+            const response = await fetch(`/api/cities/${newValue}/districts`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Received districts:', data.districts);
+            
+            if (data.districts && Array.isArray(data.districts)) {
+                // Gunakan spread operator untuk membuat array baru
+                districts.value = [...data.districts];
+                console.log('Districts array updated:', districts.value);
+            } else {
+                console.error('Invalid districts data format:', data);
+                districts.value = [];
+            }
+        } catch (error) {
+            console.error('Error fetching districts:', error);
+            districts.value = [];
+        }
+    } else {
+        districts.value = [];
+    }
+});
+
+// Hitung usia otomatis saat tanggal lahir berubah
+watch(() => form.birth_date, (newValue) => {
+    if (newValue) {
+        const birthDate = new Date(newValue);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        
+        form.age = age.toString();
+    } else {
+        form.age = '';
+    }
+});
+
+const submitForm = () => {
+    console.log('Form submit dipanggil');
+    console.log('Data form yang akan dikirim:', form);
+    
+    form.post('/admin/employees/store', {
+        onSuccess: (response) => {
+            console.log('Penyimpanan berhasil:', response);
+            // Reset form dan redirect ke halaman list karyawan
+            form.reset();
+            router.visit('/admin/employees', {
+                onSuccess: () => {
+                    console.log('Redirect berhasil');
+                },
+                onError: (error) => {
+                    console.error('Error redirect:', error);
+                }
+            });
+        },
+        onError: (errors) => {
+            console.error('Error pada form submission:', errors);
+        },
+        preserveScroll: true
     });
 };
 </script>
@@ -164,8 +248,8 @@ const submitForm = () => {
                     <div class="relative">
                         <div class="profile-picture">
                             <img
-                                v-if="formData.photoPreview"
-                                :src="formData.photoPreview"
+                                v-if="form.photoPreview"
+                                :src="form.photoPreview"
                                 alt="Preview Foto"
                                 class="w-full h-full object-cover"
                             />
@@ -192,7 +276,7 @@ const submitForm = () => {
                     <input
                         type="text"
                         id="name"
-                        v-model="formData.name"
+                        v-model="form.name"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         required
                     />
@@ -203,7 +287,7 @@ const submitForm = () => {
                     <input
                         type="text"
                         id="nip"
-                        v-model="formData.nip"
+                        v-model="form.nip"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         required
                     />
@@ -215,7 +299,7 @@ const submitForm = () => {
                         <label class="inline-flex items-center">
                             <input
                                 type="radio"
-                                v-model="formData.gender"
+                                v-model="form.gender"
                                 value="L"
                                 class="form-radio text-blue-600"
                             />
@@ -224,7 +308,7 @@ const submitForm = () => {
                         <label class="inline-flex items-center">
                             <input
                                 type="radio"
-                                v-model="formData.gender"
+                                v-model="form.gender"
                                 value="P"
                                 class="form-radio text-blue-600"
                             />
@@ -239,7 +323,7 @@ const submitForm = () => {
                         <input
                             type="text"
                             id="birth_place"
-                            v-model="formData.birth_place"
+                            v-model="form.birth_place"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
@@ -248,7 +332,7 @@ const submitForm = () => {
                         <input
                             type="date"
                             id="birth_date"
-                            v-model="formData.birth_date"
+                            v-model="form.birth_date"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
@@ -257,13 +341,13 @@ const submitForm = () => {
                 <div>
                     <label for="religion" class="block text-sm font-medium text-gray-700">Agama</label>
                     <select
-                        id="religion"
-                        v-model="formData.religion"
+                        id="religion_id"
+                        v-model="form.religion_id"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     >
                         <option value="">-- Pilih Agama --</option>
-                        <option v-for="religion in religions" :key="religion.id" :value="religion.id">
-                            {{ religion.name }}
+                        <option v-for="religion in props.religions" :key="religion.id" :value="religion.id">
+                            {{ religion.agama }}
                         </option>
                     </select>
                 </div>
@@ -272,14 +356,15 @@ const submitForm = () => {
                     <label for="marital_status" class="block text-sm font-medium text-gray-700">Status Kawin</label>
                     <select
                         id="marital_status"
-                        v-model="formData.marital_status"
+                        v-model="form.marital_status"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         required
                     >
                         <option value="">-- Status Kawin --</option>
-                        <option v-for="status in maritalStatuses" :key="status.id" :value="status.id">
-                            {{ status.name }}
-                        </option>
+                        <option value="Belum Kawin">Belum Kawin</option>
+                        <option value="Kawin">Kawin</option>
+                        <option value="Cerai Hidup">Cerai Hidup</option>
+                        <option value="Cerai Mati">Cerai Mati</option>
                     </select>
                 </div>
 
@@ -288,7 +373,7 @@ const submitForm = () => {
                         <label for="address" class="block text-sm font-medium text-gray-700">Alamat</label>
                         <textarea
                             id="address"
-                            v-model="formData.address"
+                            v-model="form.address"
                             rows="3"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             placeholder="Mohon Isi Alamat dengan lengkap..."
@@ -301,11 +386,11 @@ const submitForm = () => {
                             <label for="province_id" class="block text-sm font-medium text-gray-700">Provinsi</label>
                             <select
                                 id="province_id"
-                                v-model="formData.province_id"
+                                v-model="form.province_id"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             >
                                 <option value="">--Pilih Provinsi--</option>
-                                <option v-for="province in provinces" :key="province.id" :value="province.id">
+                                <option v-for="province in props.provinces" :key="province.id" :value="province.id">
                                     {{ province.name }}
                                 </option>
                             </select>
@@ -314,27 +399,33 @@ const submitForm = () => {
                             <label for="city_id" class="block text-sm font-medium text-gray-700">Kabupaten/Kota</label>
                             <select
                                 id="city_id"
-                                v-model="formData.city_id"
+                                v-model="form.city_id"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                :disabled="!form.province_id || cities.length === 0"
                             >
                                 <option value="">--Pilih Kabupaten/Kota--</option>
                                 <option v-for="city in cities" :key="city.id" :value="city.id">
-                                    {{ city.name }}
+                                    {{ city.name }} ({{ city.type }})
                                 </option>
                             </select>
+                            <div v-if="form.province_id && cities.length === 0" class="text-xs text-gray-500 mt-1">Loading kota...</div>
+                            <div v-if="form.province_id && cities.length > 0" class="text-xs text-green-500 mt-1">{{ cities.length }} kota tersedia</div>
                         </div>
                         <div>
                             <label for="district_id" class="block text-sm font-medium text-gray-700">Kecamatan</label>
                             <select
                                 id="district_id"
-                                v-model="formData.district_id"
+                                v-model="form.district_id"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                :disabled="!form.city_id || districts.length === 0"
                             >
                                 <option value="">--Pilih Kecamatan--</option>
                                 <option v-for="district in districts" :key="district.id" :value="district.id">
                                     {{ district.name }}
                                 </option>
                             </select>
+                            <div v-if="form.city_id && districts.length === 0" class="text-xs text-gray-500 mt-1">Loading kecamatan...</div>
+                            <div v-if="form.city_id && districts.length > 0" class="text-xs text-green-500 mt-1">{{ districts.length }} kecamatan tersedia</div>
                         </div>
                     </div>
                 </div>
@@ -345,7 +436,7 @@ const submitForm = () => {
                         <input
                             type="email"
                             id="email"
-                            v-model="formData.email"
+                            v-model="form.email"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
                         />
@@ -355,7 +446,7 @@ const submitForm = () => {
                         <input
                             type="tel"
                             id="home_phone"
-                            v-model="formData.home_phone"
+                            v-model="form.home_phone"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             placeholder="(021) 999-9999"
                         />
@@ -365,7 +456,7 @@ const submitForm = () => {
                         <input
                             type="tel"
                             id="mobile_phone"
-                            v-model="formData.mobile_phone"
+                            v-model="form.mobile_phone"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             placeholder="Isikan No Hp"
                         />
@@ -375,7 +466,7 @@ const submitForm = () => {
                         <input
                             type="tel"
                             id="fax"
-                            v-model="formData.fax"
+                            v-model="form.fax"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             placeholder="Isikan No Fax"
                         />
@@ -388,7 +479,7 @@ const submitForm = () => {
                         <input
                             type="text"
                             id="ktp"
-                            v-model="formData.ktp"
+                            v-model="form.ktp"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
                         />
@@ -398,7 +489,7 @@ const submitForm = () => {
                         <input
                             type="text"
                             id="npwp"
-                            v-model="formData.npwp"
+                            v-model="form.npwp"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
@@ -409,11 +500,11 @@ const submitForm = () => {
                         <label for="bank_id" class="block text-sm font-medium text-gray-700">Bank Transfer</label>
                         <select
                             id="bank_id"
-                            v-model="formData.bank_id"
+                            v-model="form.bank_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">-- Pilih Bank Transfer --</option>
-                            <option v-for="bank in banks" :key="bank.id" :value="bank.id">
+                            <option v-for="bank in props.banks" :key="bank.id" :value="bank.id">
                                 {{ bank.name }}
                             </option>
                         </select>
@@ -423,7 +514,7 @@ const submitForm = () => {
                         <input
                             type="text"
                             id="account_number"
-                            v-model="formData.account_number"
+                            v-model="form.account_number"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
@@ -436,24 +527,27 @@ const submitForm = () => {
                         <label for="department_id" class="block text-sm font-medium text-gray-700">Bagian</label>
                         <select
                             id="department_id"
-                            v-model="formData.department_id"
+                            v-model="form.department_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">-- Bagian --</option>
-                            <option v-for="department in departments" :key="department.id" :value="department.id">
-                                {{ department.name }}
+                            <option v-for="department in props.departments" :key="department.id" :value="department.id">
+                                {{ department.bagian }}
                             </option>
                         </select>
                     </div>
                     <div>
-                        <label for="sub_department" class="block text-sm font-medium text-gray-700">Sub/Bagian</label>
+                        <label for="sub_department_id" class="block text-sm font-medium text-gray-700">Sub/Bagian</label>
                         <select
-                            id="sub_department"
-                            v-model="formData.sub_department"
+                            id="sub_department_id"
+                            v-model="form.sub_department_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
                         >
                             <option value="">-- Pilih Sub Bagian --</option>
+                            <option v-for="subDepartment in props.subDepartments" :key="subDepartment.id" :value="subDepartment.id">
+                                {{ subDepartment.subbagian }}
+                            </option>
                         </select>
                     </div>
                 </div>
@@ -461,14 +555,14 @@ const submitForm = () => {
                 <div>
                     <label for="employee_type" class="block text-sm font-medium text-gray-700">Jenis Pegawai</label>
                     <select
-                        id="employee_type"
-                        v-model="formData.employee_type"
+                        id="employee_type_id"
+                        v-model="form.employee_type_id"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         required
                     >
                         <option value="">-- Pilih Jenis Pegawai --</option>
-                        <option v-for="type in employeeTypes" :key="type.id" :value="type.id">
-                            {{ type.name }}
+                        <option v-for="type in props.employeeTypes" :key="type.id" :value="type.id">
+                            {{ type.status_pegawai }}
                         </option>
                     </select>
                 </div>
@@ -477,21 +571,27 @@ const submitForm = () => {
                     <div>
                         <label for="structural_position" class="block text-sm font-medium text-gray-700">Jabatan Struktural</label>
                         <select
-                            id="structural_position"
-                            v-model="formData.structural_position"
+                            id="structural_position_id"
+                            v-model="form.structural_position_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">-- Pilih Jabatan Struktural --</option>
+                            <option v-for="position in props.structuralPositions" :key="position.id" :value="position.id">
+                                {{ position.jabatan_struktural }}
+                            </option>
                         </select>
                     </div>
                     <div>
                         <label for="functional_position" class="block text-sm font-medium text-gray-700">Jabatan Fungsional</label>
                         <select
-                            id="functional_position"
-                            v-model="formData.functional_position"
+                            id="functional_position_id"
+                            v-model="form.functional_position_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">-- Pilih Jabatan Fungsional --</option>
+                            <option v-for="position in props.functionalPositions" :key="position.id" :value="position.id">
+                                {{ position.jabatan_fungsional }}
+                            </option>
                         </select>
                     </div>
                 </div>
@@ -499,12 +599,15 @@ const submitForm = () => {
                 <div>
                     <label for="eselon" class="block text-sm font-medium text-gray-700">Eselon</label>
                     <select
-                        id="eselon"
-                        v-model="formData.eselon"
+                        id="eselon_id"
+                        v-model="form.eselon_id"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         required
                     >
                         <option value="">-- Pilih Eselon --</option>
+                        <option v-for="eselon in props.eselons" :key="eselon.id" :value="eselon.id">
+                            {{ eselon.eselon }}
+                        </option>
                     </select>
                 </div>
 
@@ -514,7 +617,7 @@ const submitForm = () => {
                         <input
                             type="text"
                             id="jamsostek"
-                            v-model="formData.jamsostek"
+                            v-model="form.jamsostek"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
@@ -523,7 +626,7 @@ const submitForm = () => {
                         <input
                             type="text"
                             id="dplk"
-                            v-model="formData.dplk"
+                            v-model="form.dplk"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
@@ -532,7 +635,7 @@ const submitForm = () => {
                         <input
                             type="text"
                             id="inhealth"
-                            v-model="formData.inhealth"
+                            v-model="form.inhealth"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
@@ -544,7 +647,7 @@ const submitForm = () => {
                         <input
                             type="date"
                             id="join_date"
-                            v-model="formData.join_date"
+                            v-model="form.join_date"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
                         />
@@ -554,7 +657,7 @@ const submitForm = () => {
                         <input
                             type="date"
                             id="contract_end_date"
-                            v-model="formData.contract_end_date"
+                            v-model="form.contract_end_date"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
                         />
@@ -563,13 +666,16 @@ const submitForm = () => {
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label for="position" class="block text-sm font-medium text-gray-700">Jabatan</label>
+                        <label for="position_id" class="block text-sm font-medium text-gray-700">Jabatan</label>
                         <select
-                            id="position"
-                            v-model="formData.position"
+                            id="position_id"
+                            v-model="form.position_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">-- Pilih Jabatan --</option>
+                            <option v-for="position in props.positions" :key="position.id" :value="position.id">
+                                {{ position.jabatan }}
+                            </option>
                         </select>
                     </div>
                     <div>
@@ -577,7 +683,7 @@ const submitForm = () => {
                         <input
                             type="date"
                             id="position_date"
-                            v-model="formData.position_date"
+                            v-model="form.position_date"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
@@ -587,10 +693,13 @@ const submitForm = () => {
                     <label for="status" class="block text-sm font-medium text-gray-700">Status Keaktifan</label>
                     <select
                         id="status"
-                        v-model="formData.status"
+                        v-model="form.status"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     >
                         <option value="">-- Pilih Status Keaktifan --</option>
+                        <option value="Aktif">Aktif</option>
+                        <option value="Non Aktif">Non Aktif</option>
+                        <option value="Cuti">Cuti</option>
                     </select>
                 </div>
 
@@ -602,7 +711,7 @@ const submitForm = () => {
                         <input
                             type="text"
                             id="username"
-                            v-model="formData.username"
+                            v-model="form.username"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
                         />
@@ -613,7 +722,7 @@ const submitForm = () => {
                         <input
                             type="password"
                             id="password"
-                            v-model="formData.password"
+                            v-model="form.password"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
                         />
@@ -623,14 +732,14 @@ const submitForm = () => {
                         <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
                         <select
                             id="role"
-                            v-model="formData.role"
+                            v-model="form.role"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
                         >
                             <option value="">-- Pilih Role --</option>
-                            <option v-for="role in roles" :key="role.id" :value="role.id">
-                                {{ role.name }}
-                            </option>
+                            <option value="admin">Admin</option>
+                            <option value="atasan">Atasan</option>
+                            <option value="pegawai">Pegawai</option>
                         </select>
                     </div>
                 </div>

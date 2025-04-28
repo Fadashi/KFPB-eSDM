@@ -3,36 +3,14 @@ import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
-const divisions = ref([
-  {
-    id: 1,
-    name: 'Divisi IT',
-    employees: [
-      { id: 1, name: 'Budi Santoso', position: 'Frontend Developer', email: 'budi@example.com' },
-      { id: 2, name: 'Dedi Kurniawan', position: 'Backend Developer', email: 'dedi@example.com' },
-      { id: 3, name: 'Rini Susanti', position: 'UI/UX Designer', email: 'rini@example.com' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Divisi HR',
-    employees: [
-      { id: 4, name: 'Siti Rahayu', position: 'HR Manager', email: 'siti@example.com' },
-      { id: 5, name: 'Ahmad Rizki', position: 'HR Staff', email: 'ahmad@example.com' },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Divisi Marketing',
-    employees: [
-      { id: 6, name: 'Diana Putri', position: 'Marketing Manager', email: 'diana@example.com' },
-      { id: 7, name: 'Eko Prasetyo', position: 'Marketing Staff', email: 'eko@example.com' },
-    ],
-  },
-])
+// Menerima data dari controller
+const props = defineProps({
+  departments: Array,
+});
 
-const selectedDivision = ref(null)
-const searchQuery = ref('')
+const divisions = computed(() => props.departments);
+const selectedDivision = ref(null);
+const searchQuery = ref('');
 
 // Tambahan state untuk pagination
 const currentPage = ref(1);
@@ -68,29 +46,40 @@ const changePage = (page) => {
 };
 
 const filteredEmployees = computed(() => {
-  if (!selectedDivision.value) return []
-  if (!searchQuery.value) return selectedDivision.value.employees
+  if (!selectedDivision.value) return [];
+  if (!searchQuery.value) return selectedDivision.value.employees;
 
-  const query = searchQuery.value.toLowerCase()
+  const query = searchQuery.value.toLowerCase();
   return selectedDivision.value.employees.filter(employee => 
-    employee.name.toLowerCase().includes(query) ||
-    employee.position.toLowerCase().includes(query) ||
-    employee.email.toLowerCase().includes(query)
-  )
-})
+    employee.name?.toLowerCase().includes(query) ||
+    employee.position?.jabatan?.toLowerCase().includes(query) || 
+    employee.email?.toLowerCase().includes(query)
+  );
+});
 
-const selectDivision = (division) => selectedDivision.value = division
+const selectDivision = (division) => {
+  selectedDivision.value = division;
+  currentPage.value = 1; // Reset ke halaman pertama saat ganti divisi
+};
+
 const openAddModal = () => {
-  router.visit('/admin/employees/create')
-}
+  router.visit('/admin/employees/create');
+};
+
 const openEditModal = (employee) => {
-  router.visit(`/admin/employees/${employee.id}/edit`)
-}
+  router.visit(`/admin/employees/${employee.id}/edit`);
+};
+
 const deleteEmployee = (employeeId) => {
   if (confirm('Apakah Anda yakin ingin menghapus karyawan ini?')) {
-    selectedDivision.value.employees = selectedDivision.value.employees.filter(emp => emp.id !== employeeId)
+    router.delete(`/admin/employees/${employeeId}`, {
+      onSuccess: () => {
+        // Refresh halaman setelah berhasil menghapus
+        selectedDivision.value.employees = selectedDivision.value.employees.filter(emp => emp.id !== employeeId);
+      }
+    });
   }
-}
+};
 </script>
 
 <template>
@@ -98,31 +87,31 @@ const deleteEmployee = (employeeId) => {
 
   <AuthenticatedLayout>
     <template #header>
-            <!-- Breadcrumbs -->
-            <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
-                <ol class="list-none p-0 inline-flex">
-                    <li class="flex items-center">
-                        <i class="fas fa-home text-blue-600 mr-1"></i>
-                        <a href="/admin/dashboard" class="text-blue-600 hover:text-blue-800 font-semibold">Dashboard</a>
-                        <svg class="w-4 h-4 mx-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-                        </svg>
-                    </li>
-                    <li class="flex items-center text-gray-700 font-semibold">
-                        Karyawan
-                    </li>
-                </ol>
-            </nav>
+      <!-- Breadcrumbs -->
+      <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
+        <ol class="list-none p-0 inline-flex">
+          <li class="flex items-center">
+            <i class="fas fa-home text-blue-600 mr-1"></i>
+            <a href="/admin/dashboard" class="text-blue-600 hover:text-blue-800 font-semibold">Dashboard</a>
+            <svg class="w-4 h-4 mx-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+            </svg>
+          </li>
+          <li class="flex items-center text-gray-700 font-semibold">
+            Karyawan
+          </li>
+        </ol>
+      </nav>
 
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-gray-900">Karyawan</h1>
-            </div>
-        </template>
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-gray-900">Karyawan</h1>
+      </div>
+    </template>
 
     <div class="flex gap-6 mt-6">
-      <!-- Divisi -->
+      <!-- Bagian -->
       <div class="w-1/4 bg-white p-4 rounded-lg shadow">
-        <h2 class="font-semibold text-lg mb-2">Divisi</h2>
+        <h2 class="font-semibold text-lg mb-2">Bagian</h2>
         <div
           v-for="division in divisions"
           :key="division.id"
@@ -177,7 +166,7 @@ const deleteEmployee = (employeeId) => {
                 class="border-b hover:bg-gray-50 transition duration-200"
               >
                 <td class="p-2">{{ employee.name }}</td>
-                <td class="p-2">{{ employee.position }}</td>
+                <td class="p-2">{{ employee.position?.jabatan || '-' }}</td>
                 <td class="p-2">{{ employee.email }}</td>
                 <td class="p-2 text-center">
                   <button class="text-blue-600 hover:underline mr-2" @click="openEditModal(employee)">
@@ -188,11 +177,19 @@ const deleteEmployee = (employeeId) => {
                   </button>
                 </td>
               </tr>
+              <tr v-if="paginatedEmployees.length === 0">
+                <td colspan="4" class="p-4 text-center text-gray-500">
+                  <div class="py-4">
+                    <i class="fas fa-folder-open text-gray-300 text-3xl mb-2"></i>
+                    <p>Belum ada karyawan di bagian ini</p>
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
 
           <!-- Pagination dan Info -->
-          <div class="mt-4 flex items-center justify-between border-t pt-4">
+          <div v-if="paginatedEmployees.length > 0" class="mt-4 flex items-center justify-between border-t pt-4">
             <div class="text-sm text-gray-700">
               Menampilkan {{ displayedItemsRange }} dari {{ totalItems }} karyawan
             </div>
@@ -239,7 +236,7 @@ const deleteEmployee = (employeeId) => {
           </div>
         </div>
         <div v-else class="text-center text-gray-500 py-10">
-          <p>Pilih divisi untuk melihat daftar karyawan</p>
+          <p>Pilih bagian untuk melihat daftar karyawan</p>
         </div>
       </div>
     </div>

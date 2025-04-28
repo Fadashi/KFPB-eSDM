@@ -24,6 +24,16 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             UserSeeder::class,
+            LocationSeeder::class,
+            BankSeeder::class,
+            RefAgamaSeeder::class,
+            RefStatusPegawaiSeeder::class,
+            RefJabatanFungsionalSeeder::class,
+            RefJabatanStrukturalSeeder::class,
+            RefEselonSeeder::class,
+            RefJabatanSeeder::class,
+            RefBagianSeeder::class,
+            RefSubBagianSeeder::class,
         ]);
     }
 }
