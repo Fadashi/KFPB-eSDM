@@ -23,6 +23,7 @@
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
+                <div v-if="errors.eselon" class="text-red-500 text-sm mt-1">{{ errors.eselon }}</div>
               </div>
               <div>
                 <label for="uraian" class="block text-sm font-medium text-gray-700">Uraian</label>
@@ -31,8 +32,8 @@
                   v-model="form.uraian"
                   rows="3"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
                 ></textarea>
+                <div v-if="errors.uraian" class="text-red-500 text-sm mt-1">{{ errors.uraian }}</div>
               </div>
             </div>
             <div class="mt-4 flex justify-end gap-2">
@@ -46,7 +47,9 @@
               <button
                 type="submit"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                :disabled="loading"
               >
+                <span v-if="loading"><i class="fas fa-spinner fa-spin mr-2"></i></span>
                 {{ isEditing ? 'Update' : 'Simpan' }}
               </button>
             </div>
@@ -77,7 +80,11 @@
             </button>
           </div>
 
-          <div class="overflow-x-auto">
+          <div v-if="loadingData" class="flex justify-center items-center py-8">
+            <i class="fas fa-spinner fa-spin text-blue-600 text-2xl"></i>
+          </div>
+
+          <div v-else class="overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -89,20 +96,20 @@
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="eselon in paginatedEselons" :key="eselon.id" class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">{{ eselon.id }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ eselon.eselon }}</td>
-                    <td class="px-6 py-4">{{ eselon.uraian }}</td>
+                  <tr v-for="item in paginatedItems" :key="item.id" class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">{{ item.id }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ item.eselon }}</td>
+                    <td class="px-6 py-4">{{ item.uraian }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center">
                       <button
-                        @click="showEditForm(eselon)"
+                        @click="showEditForm(item)"
                         class="text-blue-600 hover:text-blue-800 mr-2"
                         title="Edit"
                       >
                         <i class="fas fa-edit"></i>
                       </button>
                       <button
-                        @click="deleteEselon(eselon.id)"
+                        @click="deleteItem(item.id)"
                         class="text-red-600 hover:text-red-800"
                         title="Hapus"
                       >
@@ -110,7 +117,7 @@
                       </button>
                     </td>
                   </tr>
-                  <tr v-if="filteredEselons.length === 0">
+                  <tr v-if="filteredItems.length === 0">
                     <td colspan="4" class="px-6 py-4 text-center text-gray-500">
                       Tidak ada data yang ditemukan
                     </td>
@@ -121,9 +128,9 @@
           </div>
 
           <!-- Pagination -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          <div v-if="!loadingData && filteredItems.length > 0" class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
             <div class="text-sm text-gray-500 w-full sm:w-auto text-center sm:text-left">
-              Menampilkan {{ startIndex + 1 }} sampai {{ endIndex }} dari {{ filteredEselons.length }} data
+              Menampilkan {{ startIndex + 1 }} sampai {{ endIndex }} dari {{ filteredItems.length }} data
             </div>
             <div class="flex gap-2">
               <button
@@ -162,7 +169,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
+import axios from 'axios';
 
 const props = defineProps({
   show: {
@@ -178,29 +186,10 @@ const isEditing = ref(false);
 const search = ref('');
 const currentPage = ref(1);
 const itemsPerPage = 5;
-
-const eselons = ref([
-  {
-    id: 1,
-    eselon: 'Eselon I',
-    uraian: 'Jabatan Pimpinan Tinggi Madya'
-  },
-  {
-    id: 2,
-    eselon: 'Eselon II',
-    uraian: 'Jabatan Pimpinan Tinggi Pratama'
-  },
-  {
-    id: 3,
-    eselon: 'Eselon III',
-    uraian: 'Jabatan Administrator'
-  },
-  {
-    id: 4,
-    eselon: 'Eselon IV',
-    uraian: 'Jabatan Pengawas'
-  }
-]);
+const items = ref([]);
+const loadingData = ref(true);
+const loading = ref(false);
+const errors = reactive({});
 
 const form = reactive({
   id: null,
@@ -209,19 +198,19 @@ const form = reactive({
 });
 
 // Computed properties for filtering and pagination
-const filteredEselons = computed(() => {
-  return eselons.value.filter(eselon => {
+const filteredItems = computed(() => {
+  return items.value.filter(item => {
     const searchLower = search.value.toLowerCase();
     return (
-      eselon.eselon.toLowerCase().includes(searchLower) ||
-      eselon.uraian.toLowerCase().includes(searchLower) ||
-      eselon.id.toString().includes(searchLower)
+      item.eselon?.toLowerCase().includes(searchLower) ||
+      item.uraian?.toLowerCase().includes(searchLower) ||
+      item.id.toString().includes(searchLower)
     );
   });
 });
 
 const totalPages = computed(() => {
-  return Math.ceil(filteredEselons.value.length / itemsPerPage);
+  return Math.ceil(filteredItems.value.length / itemsPerPage);
 });
 
 const startIndex = computed(() => {
@@ -229,12 +218,25 @@ const startIndex = computed(() => {
 });
 
 const endIndex = computed(() => {
-  return Math.min(startIndex.value + itemsPerPage, filteredEselons.value.length);
+  return Math.min(startIndex.value + itemsPerPage, filteredItems.value.length);
 });
 
-const paginatedEselons = computed(() => {
-  return filteredEselons.value.slice(startIndex.value, endIndex.value);
+const paginatedItems = computed(() => {
+  return filteredItems.value.slice(startIndex.value, endIndex.value);
 });
+
+// Fetch data
+const fetchItems = async () => {
+  loadingData.value = true;
+  try {
+    const response = await axios.get('/api/eselon');
+    items.value = response.data.eselon;
+  } catch (error) {
+    console.error('Error fetching eselon data:', error);
+  } finally {
+    loadingData.value = false;
+  }
+};
 
 // Methods
 const prevPage = () => {
@@ -266,6 +268,7 @@ const resetForm = () => {
   form.id = null;
   form.eselon = '';
   form.uraian = '';
+  Object.keys(errors).forEach(key => delete errors[key]);
 };
 
 const showAddForm = () => {
@@ -274,40 +277,62 @@ const showAddForm = () => {
   isEditing.value = false;
 };
 
-const showEditForm = (eselon) => {
-  form.id = eselon.id;
-  form.eselon = eselon.eselon;
-  form.uraian = eselon.uraian;
+const showEditForm = (item) => {
+  form.id = item.id;
+  form.eselon = item.eselon;
+  form.uraian = item.uraian;
   showForm.value = true;
   isEditing.value = true;
 };
 
-const handleSubmit = () => {
-  if (isEditing.value) {
-    // Update existing eselon
-    const index = eselons.value.findIndex(e => e.id === form.id);
-    if (index !== -1) {
-      eselons.value[index] = { ...form };
+const handleSubmit = async () => {
+  loading.value = true;
+  Object.keys(errors).forEach(key => delete errors[key]);
+  
+  try {
+    if (isEditing.value) {
+      // Update existing item
+      const response = await axios.put(`/api/eselon/${form.id}`, form);
+      // Replace the updated item in the items array
+      const index = items.value.findIndex(p => p.id === form.id);
+      if (index !== -1) {
+        items.value[index] = response.data.eselon;
+      }
+    } else {
+      // Add new item
+      const response = await axios.post('/api/eselon', form);
+      items.value.push(response.data.eselon);
     }
-  } else {
-    // Add new eselon
-    const newEselon = {
-      id: eselons.value.length + 1,
-      ...form
-    };
-    eselons.value.push(newEselon);
+    
+    resetForm();
+    showForm.value = false;
+    isEditing.value = false;
+  } catch (error) {
+    if (error.response && error.response.data && error.response.data.errors) {
+      // Handle validation errors
+      Object.assign(errors, error.response.data.errors);
+    } else {
+      console.error('Error submitting form:', error);
+      alert('Terjadi kesalahan saat menyimpan data');
+    }
+  } finally {
+    loading.value = false;
   }
-  resetForm();
-  showForm.value = false;
-  isEditing.value = false;
 };
 
-const deleteEselon = (id) => {
-  if (confirm('Apakah Anda yakin ingin menghapus eselon ini?')) {
-    eselons.value = eselons.value.filter(e => e.id !== id);
-    // Reset to first page if current page is empty
-    if (paginatedEselons.value.length === 0 && currentPage.value > 1) {
-      currentPage.value--;
+const deleteItem = async (id) => {
+  if (confirm('Apakah Anda yakin ingin menghapus data eselon ini?')) {
+    try {
+      await axios.delete(`/api/eselon/${id}`);
+      items.value = items.value.filter(item => item.id !== id);
+      
+      // Reset to first page if current page is empty
+      if (paginatedItems.value.length === 0 && currentPage.value > 1) {
+        currentPage.value--;
+      }
+    } catch (error) {
+      console.error('Error deleting eselon:', error);
+      alert('Terjadi kesalahan saat menghapus data');
     }
   }
 };
@@ -315,5 +340,19 @@ const deleteEselon = (id) => {
 // Watch for search changes to reset pagination
 watch(search, () => {
   currentPage.value = 1;
+});
+
+// Watch for show prop to fetch data
+watch(() => props.show, (newValue) => {
+  if (newValue) {
+    fetchItems();
+  }
+});
+
+// Fetch data on mount if modal is shown
+onMounted(() => {
+  if (props.show) {
+    fetchItems();
+  }
 });
 </script> 

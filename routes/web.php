@@ -12,6 +12,7 @@ use App\Http\Controllers\RefCutiController;
 use App\Http\Controllers\RefStatusPegawaiController;
 use App\Http\Controllers\RefJabatanStrukturalController;
 use App\Http\Controllers\RefJabatanFungsionalController;
+use App\Http\Controllers\RefEselonController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -79,6 +80,7 @@ Route::middleware(['auth'])->group(function () {
         Route::apiResource('status-pegawai', RefStatusPegawaiController::class);
         Route::apiResource('jabatan-struktural', RefJabatanStrukturalController::class);
         Route::apiResource('jabatan-fungsional', RefJabatanFungsionalController::class);
+        Route::apiResource('eselon', RefEselonController::class);
     });
 
     //Karyawan
