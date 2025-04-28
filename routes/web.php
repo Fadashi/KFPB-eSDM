@@ -10,6 +10,7 @@ use App\Http\Controllers\RefLiburController;
 use App\Http\Controllers\RefAgamaController;
 use App\Http\Controllers\RefCutiController;
 use App\Http\Controllers\RefStatusPegawaiController;
+use App\Http\Controllers\RefJabatanStrukturalController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -75,6 +76,7 @@ Route::middleware(['auth'])->group(function () {
         Route::apiResource('agama', RefAgamaController::class);
         Route::apiResource('cuti', RefCutiController::class);
         Route::apiResource('status-pegawai', RefStatusPegawaiController::class);
+        Route::apiResource('jabatan-struktural', RefJabatanStrukturalController::class);
     });
 
     //Karyawan
