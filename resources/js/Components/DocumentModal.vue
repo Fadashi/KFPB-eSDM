@@ -15,14 +15,15 @@
           <form @submit.prevent="handleSubmit">
             <div class="space-y-4">
               <div>
-                <label for="namaBerkas" class="block text-sm font-medium text-gray-700">Nama Berkas</label>
+                <label for="nama_berkas" class="block text-sm font-medium text-gray-700">Nama Berkas</label>
                 <input
                   type="text"
-                  id="namaBerkas"
-                  v-model="form.namaBerkas"
+                  id="nama_berkas"
+                  v-model="form.nama_berkas"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
+                <div v-if="errors.nama_berkas" class="text-red-500 text-sm mt-1">{{ errors.nama_berkas }}</div>
               </div>
             </div>
             <div class="mt-4 flex justify-end gap-2">
@@ -36,7 +37,9 @@
               <button
                 type="submit"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                :disabled="loading"
               >
+                <span v-if="loading"><i class="fas fa-spinner fa-spin mr-2"></i></span>
                 {{ isEditing ? 'Update' : 'Simpan' }}
               </button>
             </div>
@@ -67,30 +70,34 @@
             </button>
           </div>
 
-          <div class="overflow-x-auto">
+          <div v-if="loadingData" class="flex justify-center items-center py-8">
+            <i class="fas fa-spinner fa-spin text-blue-600 text-2xl"></i>
+          </div>
+
+          <div v-else class="overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Berkas</th>
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="(document, index) in paginatedDocuments" :key="document.id" class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">{{ startIndex + index + 1 }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ document.namaBerkas }}</td>
+                  <tr v-for="item in paginatedItems" :key="item.id" class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">{{ item.id }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ item.nama_berkas }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center">
                       <button
-                        @click="showEditForm(document)"
+                        @click="showEditForm(item)"
                         class="text-blue-600 hover:text-blue-800 mr-2"
                         title="Edit"
                       >
                         <i class="fas fa-edit"></i>
                       </button>
                       <button
-                        @click="deleteDocument(document.id)"
+                        @click="deleteItem(item.id)"
                         class="text-red-600 hover:text-red-800"
                         title="Hapus"
                       >
@@ -98,7 +105,7 @@
                       </button>
                     </td>
                   </tr>
-                  <tr v-if="filteredDocuments.length === 0">
+                  <tr v-if="filteredItems.length === 0">
                     <td colspan="3" class="px-6 py-4 text-center text-gray-500">
                       Tidak ada data yang ditemukan
                     </td>
@@ -109,9 +116,9 @@
           </div>
 
           <!-- Pagination -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          <div v-if="!loadingData && filteredItems.length > 0" class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
             <div class="text-sm text-gray-500 w-full sm:w-auto text-center sm:text-left">
-              Menampilkan {{ startIndex + 1 }} sampai {{ endIndex }} dari {{ filteredDocuments.length }} data
+              Menampilkan {{ startIndex + 1 }} sampai {{ endIndex }} dari {{ filteredItems.length }} data
             </div>
             <div class="flex gap-2">
               <button
@@ -150,7 +157,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
+import axios from 'axios';
 
 const props = defineProps({
   show: {
@@ -166,41 +174,29 @@ const isEditing = ref(false);
 const search = ref('');
 const currentPage = ref(1);
 const itemsPerPage = 5;
-
-const documents = ref([
-  {
-    id: 1,
-    namaBerkas: 'KTP'
-  },
-  {
-    id: 2,
-    namaBerkas: 'Ijazah Terakhir'
-  },
-  {
-    id: 3,
-    namaBerkas: 'Kartu Keluarga'
-  },
-  {
-    id: 4,
-    namaBerkas: 'NPWP'
-  }
-]);
+const items = ref([]);
+const loadingData = ref(true);
+const loading = ref(false);
+const errors = reactive({});
 
 const form = reactive({
   id: null,
-  namaBerkas: ''
+  nama_berkas: ''
 });
 
 // Computed properties for filtering and pagination
-const filteredDocuments = computed(() => {
-  return documents.value.filter(doc => {
+const filteredItems = computed(() => {
+  return items.value.filter(item => {
     const searchLower = search.value.toLowerCase();
-    return doc.namaBerkas.toLowerCase().includes(searchLower);
+    return (
+      item.nama_berkas?.toLowerCase().includes(searchLower) ||
+      item.id.toString().includes(searchLower)
+    );
   });
 });
 
 const totalPages = computed(() => {
-  return Math.ceil(filteredDocuments.value.length / itemsPerPage);
+  return Math.ceil(filteredItems.value.length / itemsPerPage);
 });
 
 const startIndex = computed(() => {
@@ -208,12 +204,25 @@ const startIndex = computed(() => {
 });
 
 const endIndex = computed(() => {
-  return Math.min(startIndex.value + itemsPerPage, filteredDocuments.value.length);
+  return Math.min(startIndex.value + itemsPerPage, filteredItems.value.length);
 });
 
-const paginatedDocuments = computed(() => {
-  return filteredDocuments.value.slice(startIndex.value, endIndex.value);
+const paginatedItems = computed(() => {
+  return filteredItems.value.slice(startIndex.value, endIndex.value);
 });
+
+// Fetch data
+const fetchItems = async () => {
+  loadingData.value = true;
+  try {
+    const response = await axios.get('/api/berkas');
+    items.value = response.data.berkas;
+  } catch (error) {
+    console.error('Error fetching berkas data:', error);
+  } finally {
+    loadingData.value = false;
+  }
+};
 
 // Methods
 const prevPage = () => {
@@ -243,7 +252,8 @@ const closeForm = () => {
 
 const resetForm = () => {
   form.id = null;
-  form.namaBerkas = '';
+  form.nama_berkas = '';
+  Object.keys(errors).forEach(key => delete errors[key]);
 };
 
 const showAddForm = () => {
@@ -252,39 +262,61 @@ const showAddForm = () => {
   isEditing.value = false;
 };
 
-const showEditForm = (document) => {
-  form.id = document.id;
-  form.namaBerkas = document.namaBerkas;
+const showEditForm = (item) => {
+  form.id = item.id;
+  form.nama_berkas = item.nama_berkas;
   showForm.value = true;
   isEditing.value = true;
 };
 
-const handleSubmit = () => {
-  if (isEditing.value) {
-    // Update existing document
-    const index = documents.value.findIndex(d => d.id === form.id);
-    if (index !== -1) {
-      documents.value[index] = { ...form };
+const handleSubmit = async () => {
+  loading.value = true;
+  Object.keys(errors).forEach(key => delete errors[key]);
+  
+  try {
+    if (isEditing.value) {
+      // Update existing item
+      const response = await axios.put(`/api/berkas/${form.id}`, form);
+      // Replace the updated item in the items array
+      const index = items.value.findIndex(p => p.id === form.id);
+      if (index !== -1) {
+        items.value[index] = response.data.berkas;
+      }
+    } else {
+      // Add new item
+      const response = await axios.post('/api/berkas', form);
+      items.value.push(response.data.berkas);
     }
-  } else {
-    // Add new document
-    const newDocument = {
-      id: documents.value.length + 1,
-      ...form
-    };
-    documents.value.push(newDocument);
+    
+    resetForm();
+    showForm.value = false;
+    isEditing.value = false;
+  } catch (error) {
+    if (error.response && error.response.data && error.response.data.errors) {
+      // Handle validation errors
+      Object.assign(errors, error.response.data.errors);
+    } else {
+      console.error('Error submitting form:', error);
+      alert('Terjadi kesalahan saat menyimpan data');
+    }
+  } finally {
+    loading.value = false;
   }
-  resetForm();
-  showForm.value = false;
-  isEditing.value = false;
 };
 
-const deleteDocument = (id) => {
-  if (confirm('Apakah Anda yakin ingin menghapus berkas ini?')) {
-    documents.value = documents.value.filter(d => d.id !== id);
-    // Reset to first page if current page is empty
-    if (paginatedDocuments.value.length === 0 && currentPage.value > 1) {
-      currentPage.value--;
+const deleteItem = async (id) => {
+  if (confirm('Apakah Anda yakin ingin menghapus data berkas ini?')) {
+    try {
+      await axios.delete(`/api/berkas/${id}`);
+      items.value = items.value.filter(item => item.id !== id);
+      
+      // Reset to first page if current page is empty
+      if (paginatedItems.value.length === 0 && currentPage.value > 1) {
+        currentPage.value--;
+      }
+    } catch (error) {
+      console.error('Error deleting berkas:', error);
+      alert('Terjadi kesalahan saat menghapus data');
     }
   }
 };
@@ -292,5 +324,19 @@ const deleteDocument = (id) => {
 // Watch for search changes to reset pagination
 watch(search, () => {
   currentPage.value = 1;
+});
+
+// Watch for show prop to fetch data
+watch(() => props.show, (newValue) => {
+  if (newValue) {
+    fetchItems();
+  }
+});
+
+// Fetch data on mount if modal is shown
+onMounted(() => {
+  if (props.show) {
+    fetchItems();
+  }
 });
 </script> 
