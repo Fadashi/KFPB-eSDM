@@ -171,4 +171,27 @@ class Employee extends Model
     {
         return $this->belongsTo(RefJabatan::class, 'position_id');
     }
+
+    /**
+     * Mendapatkan URL foto karyawan
+     */
+    public function getPhotoUrlAttribute()
+    {
+        if ($this->photo) {
+            // Cek jika foto disimpan di direktori employee-photos (format lama)
+            if (file_exists(public_path('storage/employee-photos/' . $this->photo))) {
+                return asset('storage/employee-photos/' . $this->photo);
+            }
+            
+            // Cek jika foto disimpan di direktori employees (format baru)
+            if (file_exists(public_path('storage/employees/' . $this->photo))) {
+                return asset('storage/employees/' . $this->photo);
+            }
+            
+            // Fallback ke format umum storage
+            return asset('storage/' . $this->photo);
+        }
+        
+        return null;
+    }
 } 

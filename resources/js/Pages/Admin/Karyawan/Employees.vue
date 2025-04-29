@@ -63,11 +63,11 @@ const selectDivision = (division) => {
 };
 
 const openAddModal = () => {
-  router.visit('/admin/employees/create');
+  router.visit(route('admin.employees.create'));
 };
 
 const openEditModal = (employee) => {
-  router.visit(`/admin/employees/${employee.id}/edit`);
+  router.visit(route('admin.employees.edit', { id: employee.id }));
 };
 
 const deleteEmployee = (employeeId) => {

@@ -225,7 +225,14 @@ class EmployeeController extends Controller
         $photoPath = null;
         if ($request->hasFile('photo')) {
             try {
-                $photoPath = $request->file('photo')->store('employee-photos', 'public');
+                // Hapus foto lama jika ada
+                if ($photoPath && Storage::disk('public')->exists('employee-photos/' . $photoPath)) {
+                    Storage::disk('public')->delete('employee-photos/' . $photoPath);
+                }
+                
+                $photoName = time() . '_' . $request->file('photo')->getClientOriginalName();
+                $request->file('photo')->storeAs('public/employee-photos', $photoName);
+                $photoPath = $photoName;
                 Log::info('Foto karyawan berhasil diunggah: ' . $photoPath);
             } catch (\Exception $e) {
                 Log::error('Error saat mengunggah foto: ' . $e->getMessage());
@@ -321,12 +328,29 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Menampilkan form untuk edit pegawai
+     * Menampilkan form untuk mengedit data pegawai
      */
     public function edit($id)
     {
-        $employee = Employee::with('user')->findOrFail($id);
-
+        // Cari karyawan berdasarkan ID
+        $employee = Employee::with([
+            'user',
+            'department',
+            'position',
+            'province',
+            'city',
+            'district',
+            'bank',
+            'religion',
+            'employeeType',
+            'functionalPosition',
+            'structuralPosition',
+            'eselon',
+        ])->findOrFail($id);
+        
+        // Tambahkan URL foto ke objek karyawan
+        $employee->photo_url = $employee->photo_url;
+        
         // Ambil data untuk dropdown
         $provinces = Province::all();
         $departments = RefBagian::all();
@@ -337,24 +361,11 @@ class EmployeeController extends Controller
         $functionalPositions = RefJabatanFungsional::all();
         $structuralPositions = RefJabatanStruktural::all();
         $eselons = RefEselon::all();
-
-        // Ambil data kota dan kecamatan terkait jika ada
-        $cities = collect();
-        $districts = collect();
-
-        if ($employee->province_id) {
-            $cities = City::where('province_id', $employee->province_id)->get();
-        }
-
-        if ($employee->city_id) {
-            $districts = District::where('city_id', $employee->city_id)->get();
-        }
+        $positions = RefJabatan::all();
 
         return Inertia::render('Admin/Karyawan/EditEmployees', [
             'employee' => $employee,
             'provinces' => $provinces,
-            'cities' => $cities,
-            'districts' => $districts,
             'departments' => $departments,
             'subDepartments' => $subDepartments,
             'banks' => $banks,
@@ -362,7 +373,8 @@ class EmployeeController extends Controller
             'employeeTypes' => $employeeTypes,
             'functionalPositions' => $functionalPositions,
             'structuralPositions' => $structuralPositions,
-            'eselons' => $eselons
+            'eselons' => $eselons,
+            'positions' => $positions
         ]);
     }
 
@@ -371,120 +383,135 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $employee = Employee::findOrFail($id);
-
-        // Validasi input
-        $validated = $request->validate([
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048', // Maksimal 2MB
-            'nip' => ['required', 'string', 'max:50', Rule::unique('employees')->ignore($employee->id)],
-            'entry_level' => 'nullable|string|max:100',
-            'initial' => 'nullable|string|max:10',
-            'name' => 'required|string|max:255',
-            'gender' => 'required|in:L,P',
-            'birth_place' => 'nullable|string|max:100',
-            'birth_date' => 'nullable|date',
-            'age' => 'nullable|integer',
-            'address' => 'required|string',
-            'province_id' => 'nullable|exists:provinces,id',
-            'city_id' => 'nullable|exists:cities,id',
-            'district_id' => 'nullable|exists:districts,id',
-            'temporary_address' => 'nullable|string',
-            'email' => ['required', 'email', Rule::unique('employees')->ignore($employee->id)],
-            'home_phone' => 'nullable|string|max:20',
-            'mobile_phone' => 'nullable|string|max:20',
-            'fax' => 'nullable|string|max:20',
-            'ktp' => 'required|string|max:20',
-            'npwp' => 'nullable|string|max:30',
-            'department_id' => 'nullable|exists:ref_bagian,id',
-            'bank_id' => 'nullable|exists:banks,id',
-            'account_number' => 'nullable|string|max:50',
-            'jamsostek' => 'nullable|string|max:50',
-            'dplk' => 'nullable|string|max:50',
-            'inhealth' => 'nullable|string|max:50',
-            'religion_id' => 'nullable|exists:ref_agama,id',
-            'employee_type_id' => 'nullable|exists:ref_status_pegawai,id',
-            'grade' => 'nullable|string|max:50',
-            'functional_position_id' => 'nullable|exists:ref_jabatan_fungsional,id',
-            'structural_position_id' => 'nullable|exists:ref_jabatan_struktural,id',
-            'sub_department_id' => 'nullable|exists:ref_subbagian,id',
-            'eselon_id' => 'nullable|exists:ref_eselon,id',
-            'marital_status' => 'nullable|in:Belum Kawin,Kawin,Cerai Hidup,Cerai Mati',
-            'employee_status' => 'required|in:Aktif,Non Aktif,Cuti',
-            'join_date' => 'required|date',
-            'contract_end_date' => 'nullable|date',
-            'education' => 'nullable|in:SD,SMP,SMA,D3,S1,S2,S3',
-            'position_date' => 'nullable|date',
-            'position_id' => 'nullable|exists:ref_jabatan,id',
-            'status' => 'required|in:Aktif,Non Aktif,Cuti',
-            
-            // Data Akun
-            'username' => ['nullable', 'string', 'max:50', Rule::unique('users', 'name')->ignore($employee->user_id)],
-            'password' => 'nullable|string|min:8',
-            'role' => 'nullable|in:admin,atasan,pegawai',
-        ]);
-
-        // Upload foto jika ada
-        $photoPath = $employee->photo;
-        if ($request->hasFile('photo')) {
-            // Hapus foto lama jika ada
-            if ($photoPath && Storage::disk('public')->exists($photoPath)) {
-                Storage::disk('public')->delete($photoPath);
-            }
-            
-            $photoPath = $request->file('photo')->store('employee-photos', 'public');
-        }
+        Log::info('Menerima request update data karyawan', ['request' => $request->all()]);
 
         try {
+            // Cari karyawan yang akan diupdate
+            $employee = Employee::findOrFail($id);
+            
+            // Validasi input
+            $validated = $request->validate([
+                'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048', // Maksimal 2MB
+                'nip' => ['required', 'string', 'max:50', Rule::unique('employees', 'nip')->ignore($id)],
+                'entry_level' => 'nullable|string|max:100',
+                'initial' => 'nullable|string|max:10',
+                'name' => 'required|string|max:255',
+                'gender' => 'required|in:L,P',
+                'birth_place' => 'nullable|string|max:100',
+                'birth_date' => 'nullable|date',
+                'age' => 'nullable|integer',
+                'address' => 'required|string',
+                'province_id' => 'nullable|exists:provinces,id',
+                'city_id' => 'nullable|exists:cities,id',
+                'district_id' => 'nullable|exists:districts,id',
+                'temporary_address' => 'nullable|string',
+                'email' => ['required', 'email', Rule::unique('employees', 'email')->ignore($id), Rule::unique('users', 'email')->ignore($employee->user_id)],
+                'home_phone' => 'nullable|string|max:20',
+                'mobile_phone' => 'nullable|string|max:20',
+                'fax' => 'nullable|string|max:20',
+                'ktp' => ['required', 'string', 'max:20', Rule::unique('employees', 'ktp')->ignore($id)],
+                'npwp' => ['nullable', 'string', 'max:30', Rule::unique('employees', 'npwp')->ignore($id)],
+                'department_id' => 'nullable|exists:ref_bagian,id',
+                'bank_id' => 'nullable|exists:banks,id',
+                'account_number' => 'nullable|string|max:50',
+                'jamsostek' => 'nullable|string|max:50',
+                'dplk' => 'nullable|string|max:50',
+                'inhealth' => 'nullable|string|max:50',
+                'religion_id' => 'nullable|exists:ref_agama,id',
+                'employee_type_id' => 'nullable|exists:ref_status_pegawai,id',
+                'grade' => 'nullable|string|max:50',
+                'functional_position_id' => 'nullable|exists:ref_jabatan_fungsional,id',
+                'structural_position_id' => 'nullable|exists:ref_jabatan_struktural,id',
+                'sub_department_id' => 'nullable|exists:ref_subbagian,id',
+                'eselon_id' => 'nullable|exists:ref_eselon,id',
+                'marital_status' => 'nullable|in:Belum Kawin,Kawin,Cerai Hidup,Cerai Mati',
+                'employee_status' => 'required|in:Aktif,Non Aktif,Cuti',
+                'join_date' => 'nullable|date',
+                'contract_end_date' => 'nullable|date',
+                'education' => 'nullable|string|max:255',
+                'position_date' => 'nullable|date',
+                'position_id' => 'nullable|exists:ref_jabatan,id',
+                'status' => 'required|in:Aktif,Non Aktif',
+            ]);
+
             // Mulai transaksi database
             DB::beginTransaction();
 
-            // Update data user jika ada perubahan
-            if ($employee->user_id && ($request->filled('username') || $request->filled('password') || $request->filled('role'))) {
-                $userData = [];
-                
-                if ($request->filled('username')) {
-                    $userData['name'] = $validated['username'];
+            // Upload foto jika ada
+            if ($request->hasFile('photo')) {
+                // Hapus foto lama jika ada
+                if ($employee->photo && Storage::disk('public')->exists('employee-photos/' . $employee->photo)) {
+                    Storage::disk('public')->delete('employee-photos/' . $employee->photo);
                 }
                 
-                if ($request->filled('password')) {
-                    $userData['password'] = Hash::make($validated['password']);
-                }
-                
-                if ($request->filled('role')) {
-                    $userData['role'] = $validated['role'];
-                }
-                
-                if ($request->filled('email') && $employee->email != $validated['email']) {
-                    $userData['email'] = $validated['email'];
-                }
-                
-                if (!empty($userData)) {
-                    User::where('id', $employee->user_id)->update($userData);
+                // Upload foto baru
+                $photoName = time() . '_' . $request->file('photo')->getClientOriginalName();
+                $request->file('photo')->storeAs('public/employee-photos', $photoName);
+                $employee->photo = $photoName;
+            }
+
+            // Update data karyawan
+            $employee->nip = $validated['nip'];
+            $employee->entry_level = $validated['entry_level'];
+            $employee->initial = $validated['initial'];
+            $employee->name = $validated['name'];
+            $employee->gender = $validated['gender'];
+            $employee->birth_place = $validated['birth_place'];
+            $employee->birth_date = $validated['birth_date'];
+            $employee->age = $validated['age'];
+            $employee->address = $validated['address'];
+            $employee->province_id = $validated['province_id'];
+            $employee->city_id = $validated['city_id'];
+            $employee->district_id = $validated['district_id'];
+            $employee->temporary_address = $validated['temporary_address'];
+            $employee->email = $validated['email'];
+            $employee->home_phone = $validated['home_phone'];
+            $employee->mobile_phone = $validated['mobile_phone'];
+            $employee->fax = $validated['fax'];
+            $employee->ktp = $validated['ktp'];
+            $employee->npwp = $validated['npwp'];
+            $employee->department_id = $validated['department_id'];
+            $employee->bank_id = $validated['bank_id'];
+            $employee->account_number = $validated['account_number'];
+            $employee->jamsostek = $validated['jamsostek'];
+            $employee->dplk = $validated['dplk'];
+            $employee->inhealth = $validated['inhealth'];
+            $employee->religion_id = $validated['religion_id'];
+            $employee->employee_type_id = $validated['employee_type_id'];
+            $employee->grade = $validated['grade'];
+            $employee->functional_position_id = $validated['functional_position_id'];
+            $employee->structural_position_id = $validated['structural_position_id'];
+            $employee->sub_department_id = $validated['sub_department_id'];
+            $employee->eselon_id = $validated['eselon_id'];
+            $employee->marital_status = $validated['marital_status'];
+            $employee->employee_status = $validated['employee_status'];
+            $employee->join_date = $validated['join_date'];
+            $employee->contract_end_date = $validated['contract_end_date'];
+            $employee->education = $validated['education'];
+            $employee->position_date = $validated['position_date'];
+            $employee->position_id = $validated['position_id'];
+            $employee->status = $validated['status'];
+            
+            $employee->save();
+
+            // Update user terkait jika ada
+            if ($employee->user_id) {
+                $user = User::find($employee->user_id);
+                if ($user) {
+                    $user->name = $validated['name'];
+                    $user->email = $validated['email'];
+                    $user->save();
                 }
             }
 
-            // Update data pegawai
-            $employeeData = array_merge(
-                collect($validated)->except(['photo', 'username', 'password', 'role'])->toArray(),
-                ['photo' => $photoPath]
-            );
-
-            $employee->update($employeeData);
-
-            // Commit transaksi
             DB::commit();
-
-            return redirect()->route('admin.employees')->with('success', 'Data pegawai berhasil diperbarui');
+            
+            return redirect()->route('admin.employees')->with('success', 'Data karyawan berhasil diperbarui.');
+            
         } catch (\Exception $e) {
-            // Rollback transaksi jika terjadi error
             DB::rollBack();
-
-            // Hapus foto baru jika sudah diupload dan terjadi error
-            if ($request->hasFile('photo') && $photoPath && Storage::disk('public')->exists($photoPath)) {
-                Storage::disk('public')->delete($photoPath);
-            }
-
-            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            Log::error('Error saat update karyawan: ' . $e->getMessage(), ['exception' => $e]);
+            return back()->withErrors(['error' => 'Terjadi kesalahan saat memperbarui data: ' . $e->getMessage()]);
         }
     }
 
