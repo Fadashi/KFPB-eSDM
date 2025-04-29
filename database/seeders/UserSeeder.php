@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
@@ -46,6 +46,22 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password'),
             'role' => 'pegawai',
             'email_verified_at' => now(),
+        ]);
+
+        // Tambah user pegawai
+        User::create([
+            'name' => '2203645',
+            'email' => 'rezky@upi.edu',
+            'password' => Hash::make('kfpbb'),
+            'role' => 'pegawai'
+        ]);
+
+        // Tambah user admin
+        User::create([
+            'name' => '2204323',
+            'email' => 'daffa@upi.edu',
+            'password' => Hash::make('admin'),
+            'role' => 'admin'
         ]);
     }
 } 

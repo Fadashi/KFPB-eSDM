@@ -11,11 +11,8 @@ const attendance = ref({
   check_in: null,
   check_out: null,
   location: null,
-  photo: null
+  shift: 'non_shift'
 })
-const showCamera = ref(false)
-const videoRef = ref(null)
-const stream = ref(null)
 const monthlyAttendance = ref([])
 const statistics = ref({
   total_days: 30,
@@ -28,6 +25,25 @@ const statistics = ref({
     leave: 0
   }
 })
+const mapRef = ref(null)
+const map = ref(null)
+const marker = ref(null)
+
+const workFromOptions = [
+  { value: 'office', label: 'Office' },
+  { value: 'flexi_time', label: 'Flexi Time' },
+  { value: 'pkl', label: 'PKL/Magang' }
+]
+
+const shiftOptions = [
+  { value: 'non_shift', label: 'Non Shift' },
+  { value: 'night_shift', label: 'Shift Malam' },
+  { value: 'morning_shift', label: 'Shift Pagi' },
+  { value: 'afternoon_shift', label: 'Shift Siang' },
+  { value: 'pkl', label: 'PKL/Magang' },
+  { value: 'overtime', label: 'Lembur' },
+  { value: 'flexi_time', label: 'Flexi Time' }
+]
 
 // Koordinat PT Kimia Farma Banjaran
 const PT_COORDINATES = {
@@ -71,22 +87,12 @@ const updateDateTime = () => {
 
 let timer
 
-onMounted(async () => {
-  updateDateTime()
-  timer = setInterval(updateDateTime, 1000)
-  await fetchAttendanceData()
-  watchLocation() // Mulai memantau lokasi secara otomatis
-})
-
-onUnmounted(() => {
-  clearInterval(timer)
-  stopCamera()
-})
-
 const fetchAttendanceData = async () => {
   try {
     const response = await axios.get('/pegawai/api/attendance')
     const { today, monthly, statistics: stats } = response.data
+
+    console.log('Fetched attendance data:', response.data)
 
     if (today) {
       attendance.value = {
@@ -97,7 +103,15 @@ const fetchAttendanceData = async () => {
           latitude: today.latitude,
           longitude: today.longitude
         } : null,
-        photo: today.photo
+        shift: today.shift || 'non_shift'
+      }
+    } else {
+      attendance.value = {
+        status: 'Belum Absen',
+        check_in: null,
+        check_out: null,
+        location: null,
+        shift: 'non_shift'
       }
     }
 
@@ -110,160 +124,212 @@ const fetchAttendanceData = async () => {
         leave: Math.round((stats.leave_days / stats.total_days) * 100)
       }
     }
+
+    console.log('Updated attendance state:', attendance.value)
+    console.log('Updated monthly attendance:', monthlyAttendance.value)
+    console.log('Updated statistics:', statistics.value)
   } catch (error) {
     console.error('Error fetching attendance data:', error)
   }
 }
 
-const watchLocation = () => {
-  console.log('Memulai pemantauan lokasi...');
+// Tambahkan fungsi untuk refresh data
+const refreshData = async () => {
+  await fetchAttendanceData()
+}
 
-  if (!navigator.geolocation) {
-    console.error('Browser tidak mendukung geolocation');
-    alert('Browser Anda tidak mendukung fitur geolocation. Mohon gunakan browser yang lebih modern.');
-    return;
+onMounted(async () => {
+  updateDateTime()
+  timer = setInterval(updateDateTime, 1000)
+  
+  // Tunggu Google Maps API dimuat
+  if (window.google) {
+    initMap();
+  } else {
+    window.addEventListener('google-maps-loaded', initMap);
   }
 
-  const options = {
-    enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 0
+  // Ambil data absensi
+  await fetchAttendanceData()
+})
+
+onUnmounted(() => {
+  clearInterval(timer)
+  window.removeEventListener('google-maps-loaded', initMap);
+})
+
+const getLocation = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Browser tidak mendukung geolocation'));
+      return;
+    }
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        resolve({ latitude, longitude });
+      },
+      (error) => {
+        reject(error);
+      },
+      options
+    );
+  });
+};
+
+const initMap = () => {
+  if (!mapRef.value) return;
+
+  // Gunakan lokasi PT sebagai default center
+  const center = {
+    lat: PT_COORDINATES.latitude,
+    lng: PT_COORDINATES.longitude
   };
 
-  // Mulai memantau lokasi
-  navigator.geolocation.watchPosition(
-    (position) => {
-      console.log('Lokasi terbaru didapat:', position);
-      const { latitude, longitude } = position.coords;
-
-      console.log('Koordinat terbaru:', { latitude, longitude });
-
-      // Simpan lokasi
-      attendance.value = {
-        ...attendance.value,
-        location: {
-          latitude,
-          longitude
-        }
-      };
-
-      console.log('Lokasi berhasil disimpan:', attendance.value.location);
-
-      // Cek apakah lokasi berada dalam area PT
-      if (isWithinPTArea(latitude, longitude)) {
-        console.log('Lokasi berada dalam area PT Kimia Farma Banjaran');
-      } else {
-        console.log('Lokasi berada di luar area PT Kimia Farma Banjaran');
-        alert('Anda berada di luar area PT Kimia Farma Banjaran. Mohon absensi di dalam area PT Kimia Farma Banjaran');
+  map.value = new google.maps.Map(mapRef.value, {
+    center: center,
+    zoom: 15,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
+    zoomControl: true,
+    styles: [
+      {
+        featureType: "poi",
+        elementType: "labels",
+        stylers: [{ visibility: "off" }]
       }
-    },
-    (error) => {
-      console.error('Error saat mengambil lokasi:', error);
-      switch(error.code) {
-        case error.PERMISSION_DENIED:
-          console.error('Akses lokasi ditolak');
-          alert('Akses lokasi ditolak. Mohon izinkan akses lokasi untuk melanjutkan absensi.');
-          break;
-        case error.POSITION_UNAVAILABLE:
-          console.error('Informasi lokasi tidak tersedia');
-          alert('Informasi lokasi tidak tersedia. Mohon pastikan GPS aktif dan sinyal kuat.');
-          break;
-        case error.TIMEOUT:
-          console.error('Permintaan lokasi timeout');
-          alert('Permintaan lokasi melebihi batas waktu. Mohon coba lagi.');
-          break;
-        default:
-          console.error('Error tidak diketahui:', error);
-          alert('Terjadi kesalahan saat mengambil lokasi. Mohon coba lagi.');
-      }
-    },
-    options
-  );
-}
+    ]
+  });
 
-const startCamera = async () => {
+  // Tambahkan marker untuk lokasi PT
+  new google.maps.Marker({
+    position: center,
+    map: map.value,
+    title: 'PT Kimia Farma Banjaran',
+    icon: {
+      url: '/images/marker-company.png',
+      scaledSize: new google.maps.Size(40, 40)
+    }
+  });
+
+  // Tambahkan circle untuk radius
+  new google.maps.Circle({
+    strokeColor: '#FF0000',
+    strokeOpacity: 0.8,
+    strokeWeight: 2,
+    fillColor: '#FF0000',
+    fillOpacity: 0.35,
+    map: map.value,
+    center: center,
+    radius: PT_COORDINATES.radius * 1000 // Konversi ke meter
+  });
+
+  // Jika ada lokasi user, update posisi
+  if (attendance.value.location) {
+    updateUserPosition(attendance.value.location);
+  }
+};
+
+const updateUserPosition = (location) => {
+  if (!map.value) return;
+
+  const userPosition = {
+    lat: location.latitude,
+    lng: location.longitude
+  };
+
+  // Update center map ke posisi user
+  map.value.setCenter(userPosition);
+
+  // Hapus marker lama jika ada
+  if (marker.value) {
+    marker.value.setMap(null);
+  }
+
+  // Tambahkan marker baru
+  marker.value = new google.maps.Marker({
+    position: userPosition,
+    map: map.value,
+    title: 'Lokasi Anda',
+    icon: {
+      url: '/images/marker-user.png',
+      scaledSize: new google.maps.Size(40, 40)
+    }
+  });
+
+  // Tambahkan info window
+  const infoWindow = new google.maps.InfoWindow({
+    content: `
+      <div class="p-2">
+        <h3 class="font-bold">Lokasi Anda</h3>
+        <p>Latitude: {{ location.latitude.toFixed(6) }}</p>
+        <p>Longitude: {{ location.longitude.toFixed(6) }}</p>
+      </div>
+    `
+  });
+
+  marker.value.addListener('click', () => {
+    infoWindow.open(map.value, marker.value);
+  });
+};
+
+const watchLocation = async () => {
   try {
-    if (stream.value) {
-      stream.value.getTracks().forEach(track => track.stop());
-      stream.value = null;
+    // Hentikan deteksi lokasi jika sudah ada lokasi
+    if (attendance.value.location) {
+      console.log('Lokasi sudah ada, tidak perlu mendeteksi ulang');
+      return;
     }
 
-    const constraints = {
-      video: {
-        facingMode: 'user',
-        width: { ideal: 480 },
-        height: { ideal: 360 }
-      }
-    };
-
-    console.log('Meminta akses kamera...');
-    stream.value = await navigator.mediaDevices.getUserMedia(constraints);
-    console.log('Akses kamera berhasil');
-
-    await nextTick();
-
-    if (videoRef.value) {
-      console.log('Mengatur video element...');
-      videoRef.value.srcObject = stream.value;
-      videoRef.value.onloadedmetadata = () => {
-        videoRef.value.play();
-        console.log('Video element siap');
-      };
-    } else {
-      console.error('Video element tidak ditemukan');
-      alert('Tidak dapat mengakses kamera. Mohon refresh halaman dan coba lagi.');
-    }
-
-    showCamera.value = true;
-  } catch (err) {
-    console.error('Error mengakses kamera:', err);
-    if (err.name === 'NotAllowedError') {
-      alert('Akses kamera ditolak. Mohon izinkan akses kamera untuk melanjutkan absensi.');
-    } else if (err.name === 'NotFoundError') {
-      alert('Kamera tidak ditemukan. Mohon pastikan kamera terhubung dan berfungsi dengan baik.');
-    } else {
-      alert('Tidak dapat mengakses kamera. Mohon pastikan kamera berfungsi dengan baik.');
-    }
-  }
-}
-
-const stopCamera = () => {
-  if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop());
-    stream.value = null;
-  }
-  showCamera.value = false;
-}
-
-const capturePhoto = () => {
-  if (!videoRef.value) {
-    console.error('Video element tidak ditemukan');
-    alert('Tidak dapat mengambil foto. Mohon refresh halaman dan coba lagi.');
-    return;
-  }
-
-  try {
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.value.videoWidth;
-    canvas.height = videoRef.value.videoHeight;
-    const ctx = canvas.getContext('2d');
-
-    ctx.drawImage(videoRef.value, 0, 0, canvas.width, canvas.height);
-
-    const photoData = canvas.toDataURL('image/jpeg', 0.8);
-    console.log('Foto berhasil diambil, ukuran:', photoData.length, 'bytes');
-
+    const location = await getLocation();
+    console.log('Lokasi didapat:', location);
+    
     attendance.value = {
       ...attendance.value,
-      photo: photoData
+      location: {
+        latitude: location.latitude,
+        longitude: location.longitude
+      }
     };
 
-    stopCamera();
-  } catch (err) {
-    console.error('Error mengambil foto:', err);
-    alert('Gagal mengambil foto. Mohon coba lagi.');
+    // Update peta dengan posisi baru
+    updateUserPosition(location);
+
+    if (isWithinPTArea(location.latitude, location.longitude)) {
+      console.log('Lokasi berada dalam area PT Kimia Farma Banjaran');
+    } else {
+      console.log('Lokasi berada di luar area PT Kimia Farma Banjaran');
+      alert('Anda berada di luar area PT Kimia Farma Banjaran. Mohon absensi di dalam area PT Kimia Farma Banjaran');
+    }
+  } catch (error) {
+    console.error('Error saat mengambil lokasi:', error);
+    switch(error.code) {
+      case error.PERMISSION_DENIED:
+        console.error('Akses lokasi ditolak');
+        alert('Akses lokasi ditolak. Mohon izinkan akses lokasi untuk melanjutkan absensi.');
+        break;
+      case error.POSITION_UNAVAILABLE:
+        console.error('Informasi lokasi tidak tersedia');
+        alert('Informasi lokasi tidak tersedia. Mohon pastikan GPS aktif dan sinyal kuat.');
+        break;
+      case error.TIMEOUT:
+        console.error('Permintaan lokasi timeout');
+        alert('Permintaan lokasi melebihi batas waktu. Mohon coba lagi.');
+        break;
+      default:
+        console.error('Error tidak diketahui:', error);
+        alert('Terjadi kesalahan saat mengambil lokasi. Mohon coba lagi.');
+    }
   }
-}
+};
 
 const calculatePercentages = () => {
   statistics.value.percentages = {
@@ -274,74 +340,126 @@ const calculatePercentages = () => {
 }
 
 const checkIn = async () => {
-  if (!attendance.value.location) {
-    alert('Mohon izinkan akses lokasi terlebih dahulu');
-    return;
-  }
-
-  if (!attendance.value.photo) {
-    alert('Mohon ambil foto terlebih dahulu');
-    return;
-  }
-
   try {
+    // Ambil lokasi terbaru
+    await watchLocation();
+    
+    if (!attendance.value.location) {
+      alert('Mohon izinkan akses lokasi terlebih dahulu');
+      return;
+    }
+
+    console.log('Sending check in request with location:', attendance.value.location);
+
     const response = await axios.post('/pegawai/api/attendance/check-in', {
       latitude: attendance.value.location.latitude,
       longitude: attendance.value.location.longitude,
-      photo: attendance.value.photo
+      work_from: attendance.value.work_from,
+      shift: attendance.value.shift
     });
 
-    const checkInTime = new Date(response.data.data.check_in);
-    const lateTime = new Date();
-    lateTime.setHours(7, 0, 0, 0);
+    console.log('Check in response:', response.data);
 
-    if (checkInTime > lateTime) {
-      statistics.value.late_days++;
-      attendance.value.status = 'Terlambat';
-    } else {
-      statistics.value.present_days++;
-      attendance.value.status = 'Hadir';
-    }
+    // Update data lokal dengan response dari server
+    attendance.value = {
+      ...attendance.value,
+      status: response.data.data.status,
+      check_in: response.data.data.check_in,
+      location: {
+        latitude: response.data.data.latitude,
+        longitude: response.data.data.longitude
+      },
+      work_from: response.data.data.work_from,
+      shift: response.data.data.shift
+    };
 
+    // Update statistik dan riwayat absensi
+    statistics.value = response.data.statistics;
+    monthlyAttendance.value = response.data.monthly;
+
+    // Update persentase
     calculatePercentages();
-    attendance.value.check_in = response.data.data.check_in;
+
+    // Refresh data setelah check in
+    await refreshData()
+    
     alert('Absensi masuk berhasil');
-    await fetchAttendanceData();
   } catch (error) {
     console.error('Error checking in:', error);
+    console.error('Error response:', error.response?.data);
     alert(error.response?.data?.message || 'Terjadi kesalahan saat absensi masuk');
   }
 }
 
 const checkOut = async () => {
-  if (!attendance.value.location) {
-    alert('Mohon izinkan akses lokasi terlebih dahulu');
-    return;
-  }
-
-  if (!attendance.value.photo) {
-    alert('Mohon ambil foto terlebih dahulu');
-    return;
-  }
-
   try {
+    // Ambil lokasi terbaru
+    await watchLocation();
+    
+    if (!attendance.value.location) {
+      alert('Mohon izinkan akses lokasi terlebih dahulu');
+      return;
+    }
+
+    console.log('Sending check out request with location:', attendance.value.location);
+
     const response = await axios.post('/pegawai/api/attendance/check-out', {
       latitude: attendance.value.location.latitude,
-      longitude: attendance.value.location.longitude,
-      photo: attendance.value.photo
+      longitude: attendance.value.location.longitude
     });
 
-    attendance.value.check_out = response.data.data.check_out;
-    alert('Absensi pulang berhasil');
+    console.log('Check out response:', response.data);
 
-    // Refresh data absensi dan statistik
-    await fetchAttendanceData();
+    // Update data lokal dengan response dari server
+    attendance.value = {
+      ...attendance.value,
+      status: 'Sudah Absen',
+      check_out: response.data.data.check_out,
+      location: {
+        latitude: response.data.data.latitude,
+        longitude: response.data.data.longitude
+      }
+    };
+
+    // Update statistik dan riwayat absensi
+    statistics.value = response.data.statistics;
+    monthlyAttendance.value = response.data.monthly;
+
+    // Update persentase
     calculatePercentages();
+
+    // Refresh data setelah check out
+    await refreshData()
+    
+    alert('Absensi pulang berhasil');
   } catch (error) {
     console.error('Error checking out:', error);
+    console.error('Error response:', error.response?.data);
     alert(error.response?.data?.message || 'Terjadi kesalahan saat absensi pulang');
   }
 }
+
+// Mendapatkan riwayat absensi
+const getAttendances = async (month = null, year = null) => {
+  const response = await axios.get('/api/attendance', {
+    params: { month, year }
+  });
+  return response.data;
+};
+
+// Mendapatkan statistik
+const getStatistics = async (month = null, year = null) => {
+  const response = await axios.get('/api/attendance/statistics', {
+    params: { month, year }
+  });
+  return response.data;
+};
+
+// Menambah absensi
+const addAttendance = async (data) => {
+  const response = await axios.post('/api/attendance', data);
+  return response.data;
+};
 </script>
 
 <template>
@@ -349,25 +467,27 @@ const checkOut = async () => {
 
   <AuthenticatedLayout>
     <template #header>
-            <!-- Breadcrumbs -->
-            <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
-                <ol class="list-none p-0 inline-flex">
-                    <li class="flex items-center">
-                        <i class="fas fa-home text-blue-600 mr-1"></i>
-                        <a href="/pegawai/dashboard" class="text-blue-600 hover:text-blue-800 font-semibold">Dashboard</a>
-                        <svg class="w-4 h-4 mx-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-                        </svg>
-                    </li>
-                    <li class="flex items-center text-gray-700 font-semibold">
-                        Absensi
-                    </li>
-                </ol>
-            </nav>
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-gray-900">Absensi</h1>
-            </div>
-        </template>
+      <!-- Breadcrumbs -->
+      <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
+        <ol class="list-none p-0 inline-flex">
+          <li class="flex items-center">
+            <i class="fas fa-home text-blue-600 mr-1"></i>
+            <a href="/pegawai/dashboard" class="text-blue-600 hover:text-blue-800 font-semibold">Dashboard</a>
+            <svg class="w-4 h-4 mx-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+            </svg>
+          </li>
+          <li class="flex items-center text-gray-700 font-semibold">
+            Absensi
+          </li>
+        </ol>
+      </nav>
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-gray-900">Absensi</h1>
+        <div class="text-right">
+        </div>
+      </div>
+    </template>
 
     <div class="p-6 space-y-6">
       <!-- Absensi Hari Ini -->
@@ -398,6 +518,35 @@ const checkOut = async () => {
               <span class="font-semibold">{{ attendance.check_out || '-' }}</span>
             </div>
 
+            <!-- Jam Real-time -->
+            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div class="text-center">
+                <div class="text-3xl font-bold text-blue-600 mb-1">{{ currentTime }}</div>
+                <div class="text-sm text-gray-600">{{ currentDate }}</div>
+              </div>
+            </div>
+
+            <!-- NPP dan Shift -->
+            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-gray-600">NPP:</span>
+                <span class="font-semibold">{{ $page.props.auth.user.npp }}</span>
+              </div>
+
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Shift:</span>
+                <select 
+                  v-model="attendance.shift"
+                  :disabled="attendance.check_in"
+                  class="border rounded px-2 py-1"
+                >
+                  <option v-for="option in shiftOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
             <!-- Lokasi -->
             <div class="mb-4">
               <div class="p-3 bg-gray-50 rounded-lg">
@@ -406,72 +555,19 @@ const checkOut = async () => {
                   <div v-if="attendance.location">
                     <div>Latitude: {{ attendance.location.latitude?.toFixed(6) }}</div>
                     <div>Longitude: {{ attendance.location.longitude?.toFixed(6) }}</div>
-                    <div class="mt-2 text-xs text-gray-500">
-                      Lokasi akan diperbarui secara otomatis
+                    <div class="mt-2">
+                      <div ref="mapRef" class="w-full h-64 rounded-lg border-2 border-gray-300"></div>
                     </div>
                   </div>
                   <div v-else class="text-yellow-600">
                     Menunggu deteksi lokasi...
+                    <button 
+                      @click="watchLocation" 
+                      class="ml-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      Deteksi Lokasi
+                    </button>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Kamera -->
-            <div class="mb-4">
-              <button
-                @click="showCamera ? stopCamera() : startCamera()"
-                class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 w-full"
-              >
-                <i class="fas fa-camera mr-2"></i>
-                {{ showCamera ? 'Tutup Kamera' : 'Buka Kamera' }}
-              </button>
-
-              <div v-if="showCamera" class="mt-4">
-                <div class="relative">
-                  <video
-                    ref="videoRef"
-                    autoplay
-                    playsinline
-                    muted
-                    class="w-full rounded-lg border-2 border-gray-300"
-                    style="transform: scaleX(-1); width: 100%; height: 240px; object-fit: cover;"
-                  ></video>
-                  <button
-                    @click="stopCamera"
-                    class="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
-                    title="Tutup Kamera"
-                  >
-                    <i class="fas fa-times"></i>
-                  </button>
-                </div>
-                <div class="flex space-x-2 mt-2">
-                  <button
-                    @click="capturePhoto"
-                    class="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                  >
-                    <i class="fas fa-camera mr-2"></i>
-                    Ambil Foto
-                  </button>
-                  <button
-                    @click="stopCamera"
-                    class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                  >
-                    <i class="fas fa-times mr-2"></i>
-                    Tutup Kamera
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="attendance.photo" class="mt-4">
-                <div class="p-3 bg-gray-50 rounded-lg">
-                  <div class="font-semibold mb-2">Foto Absensi:</div>
-                  <img
-                    :src="attendance.photo"
-                    class="w-full rounded-lg border-2 border-gray-300"
-                    style="width: 100%; height: 240px; object-fit: cover;"
-                    alt="Foto Absensi"
-                  />
                 </div>
               </div>
             </div>
@@ -479,7 +575,7 @@ const checkOut = async () => {
             <div class="flex space-x-4">
               <button
                 @click="checkIn"
-                :disabled="!attendance.location || !attendance.photo || attendance.check_in"
+                :disabled="!attendance.location || attendance.check_in"
                 class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
               >
                 <i class="fas fa-sign-in-alt mr-2"></i>
@@ -488,7 +584,7 @@ const checkOut = async () => {
 
               <button
                 @click="checkOut"
-                :disabled="!attendance.location || !attendance.photo || !attendance.check_in || attendance.check_out"
+                :disabled="!attendance.location || !attendance.check_in || attendance.check_out"
                 class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
               >
                 <i class="fas fa-sign-out-alt mr-2"></i>
@@ -624,6 +720,8 @@ const checkOut = async () => {
                 <th class="text-left py-2">Check In</th>
                 <th class="text-left py-2">Check Out</th>
                 <th class="text-left py-2">Status</th>
+                <th class="text-left py-2">Work From</th>
+                <th class="text-left py-2">Shift</th>
                 <th class="text-left py-2">Lokasi</th>
               </tr>
             </thead>
@@ -636,9 +734,20 @@ const checkOut = async () => {
                   <span class="px-2 py-1 rounded text-sm" :class="{
                     'bg-green-100 text-green-800': record.status === 'Hadir',
                     'bg-yellow-100 text-yellow-800': record.status === 'Terlambat',
-                    'bg-red-100 text-red-800': record.status === 'Cuti'
+                    'bg-red-100 text-red-800': record.status === 'Cuti',
+                    'bg-blue-100 text-blue-800': record.status === 'Sudah Absen'
                   }">
                     {{ record.status }}
+                  </span>
+                </td>
+                <td class="py-2">
+                  <span class="text-sm text-gray-600">
+                    {{ record.work_from || '-' }}
+                  </span>
+                </td>
+                <td class="py-2">
+                  <span class="text-sm text-gray-600">
+                    {{ record.shift || '-' }}
                   </span>
                 </td>
                 <td class="py-2">

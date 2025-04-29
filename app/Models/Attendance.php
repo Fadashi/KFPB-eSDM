@@ -12,18 +12,16 @@ class Attendance extends Model
     protected $fillable = [
         'user_id',
         'date',
-        'check_in',
-        'check_out',
+        'clock_in',
+        'clock_out',
         'status',
-        'latitude',
-        'longitude',
-        'photo'
+        'notes'
     ];
 
     protected $casts = [
         'date' => 'date',
-        'check_in' => 'datetime',
-        'check_out' => 'datetime',
+        'clock_in' => 'datetime',
+        'clock_out' => 'datetime',
     ];
 
     public function user()
