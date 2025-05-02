@@ -25,8 +25,12 @@ Route::middleware([
     })->name('dashboard');
 });
 
+// Route untuk API absensi
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/attendance', [AttendanceController::class, 'index']);
-    Route::get('/attendance/statistics', [AttendanceController::class, 'statistics']);
-    Route::post('/attendance', [AttendanceController::class, 'store']);
+    Route::prefix('pegawai/api')->group(function () {
+        Route::get('/attendance', [AttendanceController::class, 'index']);
+        Route::get('/attendance/statistics', [AttendanceController::class, 'statistics']);
+        Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn']);
+        Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut']);
+    });
 }); 

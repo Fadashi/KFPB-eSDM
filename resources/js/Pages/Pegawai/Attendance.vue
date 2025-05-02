@@ -4,6 +4,13 @@ import { Head } from '@inertiajs/vue3';
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import axios from 'axios'
 
+// Koordinat PT Kimia Farma Tbk Plant Banjaran
+const PT_COORDINATES = {
+  latitude: -7.039,  // 7°02'20.4"S
+  longitude: 107.596, // 107°35'45.8"E
+  radius: 2 // radius dalam kilometer
+}
+
 const currentTime = ref('')
 const currentDate = ref('')
 const attendance = ref({
@@ -28,6 +35,8 @@ const statistics = ref({
 const mapRef = ref(null)
 const map = ref(null)
 const marker = ref(null)
+const isLoading = ref(false)
+const errorMessage = ref('')
 
 const workFromOptions = [
   { value: 'office', label: 'Office' },
@@ -44,13 +53,6 @@ const shiftOptions = [
   { value: 'overtime', label: 'Lembur' },
   { value: 'flexi_time', label: 'Flexi Time' }
 ]
-
-// Koordinat PT Kimia Farma Banjaran
-const PT_COORDINATES = {
-  latitude: -7.039,  // 7°02'20.4"S
-  longitude: 107.596, // 107°35'45.8"E
-  radius: 2 // radius dalam kilometer
-}
 
 const isWithinPTArea = (latitude, longitude) => {
   const R = 6371; // Radius bumi dalam kilometer
@@ -89,10 +91,10 @@ let timer
 
 const fetchAttendanceData = async () => {
   try {
-    const response = await axios.get('/pegawai/api/attendance')
-    const { today, monthly, statistics: stats } = response.data
+    const response = await axios.get('/pegawai/api/attendance');
+    const { today, monthly, statistics: stats } = response.data;
 
-    console.log('Fetched attendance data:', response.data)
+    console.log('Fetched attendance data:', response.data);
 
     if (today) {
       attendance.value = {
@@ -104,7 +106,7 @@ const fetchAttendanceData = async () => {
           longitude: today.longitude
         } : null,
         shift: today.shift || 'non_shift'
-      }
+      };
     } else {
       attendance.value = {
         status: 'Belum Absen',
@@ -112,26 +114,41 @@ const fetchAttendanceData = async () => {
         check_out: null,
         location: null,
         shift: 'non_shift'
-      }
+      };
     }
 
-    monthlyAttendance.value = monthly
+    // Update monthly attendance
+    monthlyAttendance.value = monthly.map(record => ({
+      ...record,
+      date: new Date(record.date).toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }));
+
+    // Update statistics
     statistics.value = {
-      ...stats,
+      total_days: stats.total_days,
+      present_days: stats.present_days,
+      late_days: stats.late_days,
+      leave_days: stats.leave_days,
       percentages: {
         present: Math.round((stats.present_days / stats.total_days) * 100),
         late: Math.round((stats.late_days / stats.total_days) * 100),
         leave: Math.round((stats.leave_days / stats.total_days) * 100)
       }
-    }
+    };
 
-    console.log('Updated attendance state:', attendance.value)
-    console.log('Updated monthly attendance:', monthlyAttendance.value)
-    console.log('Updated statistics:', statistics.value)
+    console.log('Updated attendance state:', attendance.value);
+    console.log('Updated monthly attendance:', monthlyAttendance.value);
+    console.log('Updated statistics:', statistics.value);
   } catch (error) {
-    console.error('Error fetching attendance data:', error)
+    console.error('Error fetching attendance data:', error);
+    alert('Terjadi kesalahan saat mengambil data absensi. Silakan refresh halaman.');
   }
-}
+};
 
 // Tambahkan fungsi untuk refresh data
 const refreshData = async () => {
@@ -151,6 +168,47 @@ onMounted(async () => {
 
   // Ambil data absensi
   await fetchAttendanceData()
+
+  // Langsung deteksi lokasi saat halaman dimuat
+  try {
+    const location = await getLocation();
+    console.log('Lokasi didapat:', location);
+    
+    attendance.value = {
+      ...attendance.value,
+      location: {
+        latitude: location.latitude,
+        longitude: location.longitude
+      }
+    };
+
+    // Update peta dengan posisi baru
+    updateUserPosition(location);
+
+    if (!isWithinPTArea(location.latitude, location.longitude)) {
+      console.log('Lokasi berada di luar area PT Kimia Farma Banjaran');
+      errorMessage.value = 'Anda berada di luar area PT Kimia Farma Banjaran. Mohon absensi di dalam area PT Kimia Farma Banjaran';
+    }
+  } catch (error) {
+    console.error('Error saat mengambil lokasi:', error);
+    switch(error.code) {
+      case error.PERMISSION_DENIED:
+        console.error('Akses lokasi ditolak');
+        errorMessage.value = 'Akses lokasi ditolak. Mohon izinkan akses lokasi untuk melanjutkan absensi.';
+        break;
+      case error.POSITION_UNAVAILABLE:
+        console.error('Informasi lokasi tidak tersedia');
+        errorMessage.value = 'Informasi lokasi tidak tersedia. Mohon pastikan GPS aktif dan sinyal kuat.';
+        break;
+      case error.TIMEOUT:
+        console.error('Permintaan lokasi timeout');
+        errorMessage.value = 'Permintaan lokasi melebihi batas waktu. Mohon coba lagi.';
+        break;
+      default:
+        console.error('Error tidak diketahui:', error);
+        errorMessage.value = 'Terjadi kesalahan saat mengambil lokasi. Mohon coba lagi.';
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -171,13 +229,46 @@ const getLocation = () => {
       maximumAge: 0
     };
 
+    // Coba dapatkan lokasi dengan high accuracy
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
+        console.log('Lokasi berhasil didapat:', { latitude, longitude });
         resolve({ latitude, longitude });
       },
       (error) => {
+        console.error('Error saat mendapatkan lokasi:', error);
         reject(error);
+      },
+      options
+    );
+
+    // Tambahkan watchPosition untuk update lokasi secara real-time
+    navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log('Lokasi diperbarui:', { latitude, longitude });
+        
+        attendance.value = {
+          ...attendance.value,
+          location: {
+            latitude,
+            longitude
+          }
+        };
+
+        // Update peta dengan posisi baru
+        updateUserPosition({ latitude, longitude });
+
+        // Cek apakah dalam radius
+        if (!isWithinPTArea(latitude, longitude)) {
+          errorMessage.value = 'Anda berada di luar area PT Kimia Farma Banjaran. Mohon absensi di dalam area PT Kimia Farma Banjaran';
+        } else {
+          errorMessage.value = '';
+        }
+      },
+      (error) => {
+        console.error('Error saat watch position:', error);
       },
       options
     );
@@ -270,8 +361,8 @@ const updateUserPosition = (location) => {
     content: `
       <div class="p-2">
         <h3 class="font-bold">Lokasi Anda</h3>
-        <p>Latitude: {{ location.latitude.toFixed(6) }}</p>
-        <p>Longitude: {{ location.longitude.toFixed(6) }}</p>
+        <p>Latitude: ${location.latitude.toFixed(6)}</p>
+        <p>Longitude: ${location.longitude.toFixed(6)}</p>
       </div>
     `
   });
@@ -281,184 +372,127 @@ const updateUserPosition = (location) => {
   });
 };
 
-const watchLocation = async () => {
+const handleCheckIn = async () => {
   try {
-    // Hentikan deteksi lokasi jika sudah ada lokasi
-    if (attendance.value.location) {
-      console.log('Lokasi sudah ada, tidak perlu mendeteksi ulang');
-      return;
-    }
+    isLoading.value = true;
+    errorMessage.value = '';
 
-    const location = await getLocation();
-    console.log('Lokasi didapat:', location);
-    
-    attendance.value = {
-      ...attendance.value,
-      location: {
-        latitude: location.latitude,
-        longitude: location.longitude
-      }
-    };
-
-    // Update peta dengan posisi baru
-    updateUserPosition(location);
-
-    if (isWithinPTArea(location.latitude, location.longitude)) {
-      console.log('Lokasi berada dalam area PT Kimia Farma Banjaran');
-    } else {
-      console.log('Lokasi berada di luar area PT Kimia Farma Banjaran');
-      alert('Anda berada di luar area PT Kimia Farma Banjaran. Mohon absensi di dalam area PT Kimia Farma Banjaran');
-    }
-  } catch (error) {
-    console.error('Error saat mengambil lokasi:', error);
-    switch(error.code) {
-      case error.PERMISSION_DENIED:
-        console.error('Akses lokasi ditolak');
-        alert('Akses lokasi ditolak. Mohon izinkan akses lokasi untuk melanjutkan absensi.');
-        break;
-      case error.POSITION_UNAVAILABLE:
-        console.error('Informasi lokasi tidak tersedia');
-        alert('Informasi lokasi tidak tersedia. Mohon pastikan GPS aktif dan sinyal kuat.');
-        break;
-      case error.TIMEOUT:
-        console.error('Permintaan lokasi timeout');
-        alert('Permintaan lokasi melebihi batas waktu. Mohon coba lagi.');
-        break;
-      default:
-        console.error('Error tidak diketahui:', error);
-        alert('Terjadi kesalahan saat mengambil lokasi. Mohon coba lagi.');
-    }
-  }
-};
-
-const calculatePercentages = () => {
-  statistics.value.percentages = {
-    present: Math.round((statistics.value.present_days / statistics.value.total_days) * 100),
-    late: Math.round((statistics.value.late_days / statistics.value.total_days) * 100),
-    leave: Math.round((statistics.value.leave_days / statistics.value.total_days) * 100)
-  }
-}
-
-const checkIn = async () => {
-  try {
-    // Ambil lokasi terbaru
-    await watchLocation();
-    
     if (!attendance.value.location) {
-      alert('Mohon izinkan akses lokasi terlebih dahulu');
+      errorMessage.value = 'Mohon tunggu hingga lokasi terdeteksi';
       return;
     }
 
-    console.log('Sending check in request with location:', attendance.value.location);
+    if (!isWithinPTArea(attendance.value.location.latitude, attendance.value.location.longitude)) {
+      errorMessage.value = 'Anda berada di luar area kantor. Silakan mendekat ke area kantor untuk melakukan absensi.';
+      return;
+    }
 
     const response = await axios.post('/pegawai/api/attendance/check-in', {
       latitude: attendance.value.location.latitude,
       longitude: attendance.value.location.longitude,
-      work_from: attendance.value.work_from,
       shift: attendance.value.shift
     });
 
-    console.log('Check in response:', response.data);
+    if (response.data.success) {
+      // Update data absensi hari ini
+      attendance.value = {
+        ...attendance.value,
+        status: response.data.data.status,
+        check_in: response.data.data.check_in
+      };
 
-    // Update data lokal dengan response dari server
-    attendance.value = {
-      ...attendance.value,
-      status: response.data.data.status,
-      check_in: response.data.data.check_in,
-      location: {
-        latitude: response.data.data.latitude,
-        longitude: response.data.data.longitude
-      },
-      work_from: response.data.data.work_from,
-      shift: response.data.data.shift
-    };
-
-    // Update statistik dan riwayat absensi
-    statistics.value = response.data.statistics;
-    monthlyAttendance.value = response.data.monthly;
-
-    // Update persentase
-    calculatePercentages();
-
-    // Refresh data setelah check in
-    await refreshData()
+      // Refresh data statistik dan riwayat
+      await fetchAttendanceData();
     
-    alert('Absensi masuk berhasil');
+      alert('Absensi masuk berhasil');
+    } else {
+      errorMessage.value = response.data.message || 'Gagal melakukan absensi masuk';
+    }
   } catch (error) {
-    console.error('Error checking in:', error);
-    console.error('Error response:', error.response?.data);
-    alert(error.response?.data?.message || 'Terjadi kesalahan saat absensi masuk');
+    console.error('Error saat check in:', error);
+    if (error.response) {
+      errorMessage.value = error.response.data.message || 'Terjadi kesalahan saat melakukan absensi masuk';
+    } else {
+      errorMessage.value = 'Terjadi kesalahan saat melakukan absensi masuk. Silakan coba lagi.';
+    }
+  } finally {
+    isLoading.value = false;
   }
-}
+};
 
 const checkOut = async () => {
   try {
-    // Ambil lokasi terbaru
-    await watchLocation();
-    
+    isLoading.value = true;
+    errorMessage.value = '';
+
     if (!attendance.value.location) {
-      alert('Mohon izinkan akses lokasi terlebih dahulu');
+      errorMessage.value = 'Mohon tunggu hingga lokasi terdeteksi';
       return;
     }
 
-    console.log('Sending check out request with location:', attendance.value.location);
+    if (!isWithinPTArea(attendance.value.location.latitude, attendance.value.location.longitude)) {
+      errorMessage.value = 'Anda berada di luar area kantor. Silakan mendekat ke area kantor untuk melakukan absensi.';
+      return;
+    }
 
     const response = await axios.post('/pegawai/api/attendance/check-out', {
       latitude: attendance.value.location.latitude,
       longitude: attendance.value.location.longitude
     });
 
-    console.log('Check out response:', response.data);
+    if (response.data.success) {
+      // Update data absensi hari ini
+      attendance.value = {
+        ...attendance.value,
+        status: response.data.data.status,
+        check_out: response.data.data.check_out
+      };
 
-    // Update data lokal dengan response dari server
-    attendance.value = {
-      ...attendance.value,
-      status: 'Sudah Absen',
-      check_out: response.data.data.check_out,
-      location: {
-        latitude: response.data.data.latitude,
-        longitude: response.data.data.longitude
+      // Update monthly attendance dan statistics
+      if (response.data.monthly) {
+        monthlyAttendance.value = response.data.monthly.map(record => ({
+          ...record,
+          date: new Date(record.date).toLocaleDateString('id-ID', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+        }));
       }
-    };
 
-    // Update statistik dan riwayat absensi
-    statistics.value = response.data.statistics;
-    monthlyAttendance.value = response.data.monthly;
-
-    // Update persentase
-    calculatePercentages();
-
-    // Refresh data setelah check out
-    await refreshData()
+      if (response.data.statistics) {
+        statistics.value = {
+          ...response.data.statistics,
+          percentages: {
+            present: Math.round((response.data.statistics.present_days / response.data.statistics.total_days) * 100),
+            late: Math.round((response.data.statistics.late_days / response.data.statistics.total_days) * 100),
+            leave: Math.round((response.data.statistics.leave_days / response.data.statistics.total_days) * 100)
+          }
+        };
+      }
     
-    alert('Absensi pulang berhasil');
+      alert('Absensi pulang berhasil');
+    } else {
+      errorMessage.value = response.data.message || 'Gagal melakukan absensi pulang';
+    }
   } catch (error) {
-    console.error('Error checking out:', error);
-    console.error('Error response:', error.response?.data);
-    alert(error.response?.data?.message || 'Terjadi kesalahan saat absensi pulang');
+    console.error('Error saat check out:', error);
+    if (error.response) {
+      errorMessage.value = error.response.data.message || 'Terjadi kesalahan saat melakukan absensi pulang';
+    } else {
+      errorMessage.value = 'Terjadi kesalahan saat melakukan absensi pulang. Silakan coba lagi.';
+    }
+  } finally {
+    isLoading.value = false;
   }
-}
-
-// Mendapatkan riwayat absensi
-const getAttendances = async (month = null, year = null) => {
-  const response = await axios.get('/api/attendance', {
-    params: { month, year }
-  });
-  return response.data;
 };
 
-// Mendapatkan statistik
-const getStatistics = async (month = null, year = null) => {
-  const response = await axios.get('/api/attendance/statistics', {
-    params: { month, year }
-  });
-  return response.data;
-};
-
-// Menambah absensi
-const addAttendance = async (data) => {
-  const response = await axios.post('/api/attendance', data);
-  return response.data;
+// Fungsi untuk format waktu
+const formatTime = (time) => {
+  if (!time) return '-';
+  const [hours, minutes] = time.split(':');
+  return `${hours}:${minutes}`;
 };
 </script>
 
@@ -489,139 +523,109 @@ const addAttendance = async (data) => {
       </div>
     </template>
 
-    <div class="p-6 space-y-6">
-      <!-- Absensi Hari Ini -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Bagian Absensi -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold mb-4">Absensi Hari Ini</h2>
+    <div class="py-12">
+      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <!-- Error Message -->
+        <div v-if="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          {{ errorMessage }}
+        </div>
 
-          <div class="mb-4">
-            <div class="flex justify-between items-center mb-2">
-              <span class="text-gray-600">Status:</span>
-              <span :class="{
-                'text-green-500': attendance.status === 'Hadir',
-                'text-yellow-500': attendance.status === 'Terlambat',
-                'text-red-500': attendance.status === 'Cuti'
-              }" class="font-semibold">
-                {{ attendance.status }}
-              </span>
-            </div>
-
-            <div class="flex justify-between items-center mb-2">
-              <span class="text-gray-600">Check In:</span>
-              <span class="font-semibold">{{ attendance.check_in || '-' }}</span>
-            </div>
-
-            <div class="flex justify-between items-center mb-4">
-              <span class="text-gray-600">Check Out:</span>
-              <span class="font-semibold">{{ attendance.check_out || '-' }}</span>
-            </div>
-
-            <!-- Jam Real-time -->
-            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-              <div class="text-center">
-                <div class="text-3xl font-bold text-blue-600 mb-1">{{ currentTime }}</div>
-                <div class="text-sm text-gray-600">{{ currentDate }}</div>
-              </div>
-            </div>
-
-            <!-- NPP dan Shift -->
-            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-gray-600">NPP:</span>
-                <span class="font-semibold">{{ $page.props.auth.user.npp }}</span>
-              </div>
-
-              <div class="flex justify-between items-center">
-                <span class="text-gray-600">Shift:</span>
-                <select 
-                  v-model="attendance.shift"
-                  :disabled="attendance.check_in"
-                  class="border rounded px-2 py-1"
-                >
-                  <option v-for="option in shiftOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
+        <!-- Status Absensi Hari Ini -->
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+          <h2 class="text-lg font-semibold mb-4">Status Absensi Hari Ini</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Shift</label>
+                <select v-model="attendance.shift" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                  <option v-for="shift in shiftOptions" :key="shift.value" :value="shift.value">
+                    {{ shift.label }}
                   </option>
                 </select>
               </div>
-            </div>
-
-            <!-- Lokasi -->
-            <div class="mb-4">
-              <div class="p-3 bg-gray-50 rounded-lg">
-                <div class="text-sm text-gray-600">
-                  <div class="font-semibold mb-1">Lokasi Saat Ini:</div>
-                  <div v-if="attendance.location">
-                    <div>Latitude: {{ attendance.location.latitude?.toFixed(6) }}</div>
-                    <div>Longitude: {{ attendance.location.longitude?.toFixed(6) }}</div>
-                    <div class="mt-2">
-                      <div ref="mapRef" class="w-full h-64 rounded-lg border-2 border-gray-300"></div>
-                    </div>
-                  </div>
-                  <div v-else class="text-yellow-600">
-                    Menunggu deteksi lokasi...
-                    <button 
-                      @click="watchLocation" 
-                      class="ml-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                      Deteksi Lokasi
-                    </button>
-                  </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Status</label>
+                <div class="mt-1">
+                  <span class="px-2 py-1 rounded text-sm" :class="{
+                    'bg-green-100 text-green-800': attendance.status === 'Hadir',
+                    'bg-yellow-100 text-yellow-800': attendance.status === 'Terlambat',
+                    'bg-red-100 text-red-800': attendance.status === 'Cuti',
+                    'bg-blue-100 text-blue-800': attendance.status === 'Sudah Absen'
+                  }">
+                    {{ attendance.status || 'Belum Absen' }}
+                  </span>
                 </div>
               </div>
             </div>
-
-            <div class="flex space-x-4">
-              <button
-                @click="checkIn"
-                :disabled="!attendance.location || attendance.check_in"
-                class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-              >
-                <i class="fas fa-sign-in-alt mr-2"></i>
-                Check In
-              </button>
-
-              <button
-                @click="checkOut"
-                :disabled="!attendance.location || !attendance.check_in || attendance.check_out"
-                class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
-              >
-                <i class="fas fa-sign-out-alt mr-2"></i>
-                Check Out
-              </button>
+            <div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Check In</label>
+                <div class="mt-1">
+                  <span class="text-sm text-gray-600">{{ attendance.check_in ? formatTime(attendance.check_in) : '-' }}</span>
+                </div>
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Check Out</label>
+                <div class="mt-1">
+                  <span class="text-sm text-gray-600">{{ attendance.check_out ? formatTime(attendance.check_out) : '-' }}</span>
+                </div>
+              </div>
             </div>
+          </div>
+
+          <!-- Lokasi -->
+          <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-700">Lokasi Saat Ini</label>
+            <div class="mt-1 p-3 bg-gray-50 rounded-lg">
+              <div v-if="attendance.location" class="space-y-2">
+                <div class="text-sm text-gray-600">
+                  <span class="font-medium">Latitude:</span> {{ attendance.location.latitude?.toFixed(6) }}
+                </div>
+                <div class="text-sm text-gray-600">
+                  <span class="font-medium">Longitude:</span> {{ attendance.location.longitude?.toFixed(6) }}
+                </div>
+                <div ref="mapRef" class="w-full h-64 rounded-lg border-2 border-gray-300"></div>
+              </div>
+              <div v-else class="text-yellow-600 text-sm">
+                Mendeteksi lokasi...
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 flex space-x-4">
+            <button 
+              @click="handleCheckIn" 
+              :disabled="attendance.status === 'Sudah Absen' || isLoading"
+              class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            >
+              <span v-if="isLoading" class="mr-2">
+                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </span>
+              Check In
+            </button>
+            <button 
+              @click="checkOut" 
+              :disabled="!attendance.check_in || attendance.check_out || isLoading"
+              class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center"
+            >
+              <span v-if="isLoading" class="mr-2">
+                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </span>
+              Check Out
+            </button>
           </div>
         </div>
 
-        <!-- Bagian Statistik -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold mb-4">Statistik Bulan Ini</h2>
-
-          <div class="grid grid-cols-2 gap-4 mb-6">
-            <div class="bg-blue-50 p-4 rounded-lg">
-              <div class="text-2xl font-bold text-blue-600">{{ statistics.total_days }}</div>
-              <div class="text-gray-600">Total Hari</div>
-            </div>
-
-            <div class="bg-green-50 p-4 rounded-lg">
-              <div class="text-2xl font-bold text-green-600">{{ statistics.present_days }}</div>
-              <div class="text-gray-600">Hadir</div>
-            </div>
-
-            <div class="bg-yellow-50 p-4 rounded-lg">
-              <div class="text-2xl font-bold text-yellow-600">{{ statistics.late_days }}</div>
-              <div class="text-gray-600">Terlambat</div>
-            </div>
-
-            <div class="bg-red-50 p-4 rounded-lg">
-              <div class="text-2xl font-bold text-red-600">{{ statistics.leave_days }}</div>
-              <div class="text-gray-600">Cuti</div>
-            </div>
-          </div>
-
-          <!-- Diagram Persentase -->
-          <div class="grid grid-cols-3 gap-4">
+        <!-- Statistik Absensi -->
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+          <h2 class="text-lg font-semibold mb-4">Statistik Absensi Bulan Ini</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="text-center">
               <div class="relative w-24 h-24 mx-auto">
                 <svg class="w-full h-full" viewBox="0 0 36 36">
@@ -707,64 +711,64 @@ const addAttendance = async (data) => {
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Riwayat Absensi Bulanan -->
-      <div class="bg-white p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold mb-4">Riwayat Absensi Bulanan</h2>
-        <div class="overflow-x-auto">
-          <table class="min-w-full">
-            <thead>
-              <tr class="border-b">
-                <th class="text-left py-2">Tanggal</th>
-                <th class="text-left py-2">Check In</th>
-                <th class="text-left py-2">Check Out</th>
-                <th class="text-left py-2">Status</th>
-                <th class="text-left py-2">Work From</th>
-                <th class="text-left py-2">Shift</th>
-                <th class="text-left py-2">Lokasi</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="record in monthlyAttendance" :key="record.date" class="border-b">
-                <td class="py-2">{{ record.date }}</td>
-                <td class="py-2">{{ record.check_in || '-' }}</td>
-                <td class="py-2">{{ record.check_out || '-' }}</td>
-                <td class="py-2">
-                  <span class="px-2 py-1 rounded text-sm" :class="{
-                    'bg-green-100 text-green-800': record.status === 'Hadir',
-                    'bg-yellow-100 text-yellow-800': record.status === 'Terlambat',
-                    'bg-red-100 text-red-800': record.status === 'Cuti',
-                    'bg-blue-100 text-blue-800': record.status === 'Sudah Absen'
-                  }">
-                    {{ record.status }}
-                  </span>
-                </td>
-                <td class="py-2">
-                  <span class="text-sm text-gray-600">
-                    {{ record.work_from || '-' }}
-                  </span>
-                </td>
-                <td class="py-2">
-                  <span class="text-sm text-gray-600">
-                    {{ record.shift || '-' }}
-                  </span>
-                </td>
-                <td class="py-2">
-                  <span v-if="record.latitude && record.longitude" class="text-sm text-gray-600">
-                    {{ record.latitude.toFixed(6) }}, {{ record.longitude.toFixed(6) }}
-                  </span>
-                  <span v-else class="text-sm text-gray-400">-</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Riwayat Absensi Bulanan -->
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h2 class="text-lg font-semibold mb-4">Riwayat Absensi Bulanan</h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full">
+              <thead>
+                <tr class="border-b">
+                  <th class="text-left py-2">Tanggal</th>
+                  <th class="text-left py-2">Shift</th>
+                  <th class="text-left py-2">Check In</th>
+                  <th class="text-left py-2">Check Out</th>
+                  <th class="text-left py-2">Status</th>
+                  <th class="text-left py-2">Lokasi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="record in monthlyAttendance" :key="record.date" class="border-b">
+                  <td class="py-2">{{ record.date }}</td>
+                  <td class="py-2">
+                    <span class="px-2 py-1 rounded text-sm bg-blue-100 text-blue-800">
+                      {{ record.shift ? shiftOptions.find(s => s.value === record.shift)?.label || record.shift : '-' }}
+                    </span>
+                  </td>
+                  <td class="py-2">
+                    <span v-if="record.check_in" class="text-sm text-gray-600">
+                      {{ formatTime(record.check_in) }}
+                    </span>
+                    <span v-else class="text-sm text-gray-400">-</span>
+                  </td>
+                  <td class="py-2">
+                    <span v-if="record.check_out" class="text-sm text-gray-600">
+                      {{ formatTime(record.check_out) }}
+                    </span>
+                    <span v-else class="text-sm text-gray-400">-</span>
+                  </td>
+                  <td class="py-2">
+                    <span class="px-2 py-1 rounded text-sm" :class="{
+                      'bg-green-100 text-green-800': record.status === 'Hadir',
+                      'bg-yellow-100 text-yellow-800': record.status === 'Terlambat',
+                      'bg-red-100 text-red-800': record.status === 'Cuti',
+                      'bg-blue-100 text-blue-800': record.status === 'Sudah Absen'
+                    }">
+                      {{ record.status }}
+                    </span>
+                  </td>
+                  <td class="py-2">
+                    <span v-if="record.latitude && record.longitude" class="text-sm text-gray-600">
+                      {{ record.latitude.toFixed(6) }}, {{ record.longitude.toFixed(6) }}
+                    </span>
+                    <span v-else class="text-sm text-gray-400">-</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   </AuthenticatedLayout>
 </template>
-
-<style scoped>
-/* Hapus definisi CSS manual dan gunakan kelas Tailwind langsung di template */
-</style>

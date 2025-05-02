@@ -53,43 +53,44 @@ class AttendanceController extends Controller
             $request->validate([
                 'latitude' => 'required|numeric',
                 'longitude' => 'required|numeric',
-                'shift' => 'required|in:non_shift,night_shift,morning_shift,afternoon_shift,pkl,overtime,flexi_time'
+                'shift' => 'required|string'
             ]);
 
             $user = Auth::user();
-            $today = now()->format('Y-m-d');
-            $currentTime = now()->format('H:i:s');
+            $today = now()->setTimezone('Asia/Jakarta');
+            $currentTime = $today->format('H:i:s');
 
             \Log::info('Check in attempt', [
                 'user_id' => $user->id,
-                'date' => $today,
+                'date' => $today->format('Y-m-d'),
                 'time' => $currentTime,
-                'shift' => $request->shift
+                'location' => [
+                    'latitude' => $request->latitude,
+                    'longitude' => $request->longitude
+                ]
             ]);
 
-            // Cek apakah sudah absen hari ini
+            // Cek apakah sudah check in hari ini
             $existingAttendance = Attendance::where('user_id', $user->id)
-                ->whereDate('date', $today)
+                ->whereDate('date', $today->format('Y-m-d'))
                 ->first();
 
             if ($existingAttendance) {
-                \Log::warning('Already checked in today', [
-                    'user_id' => $user->id,
-                    'date' => $today,
-                    'check_in' => $existingAttendance->check_in
-                ]);
                 return response()->json([
-                    'message' => 'Anda sudah melakukan absensi hari ini'
+                    'success' => false,
+                    'message' => 'Anda sudah melakukan check in hari ini'
                 ], 400);
             }
 
-            // Tentukan status (terlambat jika check in setelah 08:00)
-            $status = $currentTime > '08:00:00' ? 'Terlambat' : 'Hadir';
+            // Tentukan status berdasarkan waktu
+            $status = 'Hadir';
+            if ($currentTime > '08:00:00') {
+                $status = 'Terlambat';
+            }
 
-            // Buat record absensi
             $attendance = Attendance::create([
                 'user_id' => $user->id,
-                'date' => $today,
+                'date' => $today->format('Y-m-d'),
                 'check_in' => $currentTime,
                 'status' => $status,
                 'latitude' => $request->latitude,
@@ -97,32 +98,34 @@ class AttendanceController extends Controller
                 'shift' => $request->shift
             ]);
 
-            \Log::info('Check in successful', [
-                'user_id' => $user->id,
-                'date' => $today,
-                'check_in' => $currentTime,
-                'status' => $status,
-                'shift' => $request->shift
-            ]);
-
-            // Ambil data terbaru untuk response
-            $updatedData = $this->index()->getData();
-
             return response()->json([
-                'message' => 'Absensi berhasil',
-                'data' => $attendance,
-                'statistics' => $updatedData->statistics,
-                'monthly' => $updatedData->monthly
+                'success' => true,
+                'message' => 'Check in berhasil',
+                'data' => $attendance
             ]);
         } catch (\Exception $e) {
             \Log::error('Check in error', [
+                'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
             return response()->json([
-                'message' => 'Terjadi kesalahan saat melakukan absensi masuk'
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat check in: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2) {
+        $R = 6371; // Radius bumi dalam kilometer
+        $dLat = ($lat2 - $lat1) * M_PI / 180;
+        $dLon = ($lon2 - $lon1) * M_PI / 180;
+        $a = sin($dLat/2) * sin($dLat/2) +
+             cos($lat1 * M_PI / 180) * cos($lat2 * M_PI / 180) *
+             sin($dLon/2) * sin($dLon/2);
+        $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+        return $R * $c;
     }
 
     public function checkOut(Request $request)
@@ -134,26 +137,31 @@ class AttendanceController extends Controller
             ]);
 
             $user = Auth::user();
-            $today = now()->format('Y-m-d');
-            $currentTime = now()->format('H:i:s');
+            $today = now()->setTimezone('Asia/Jakarta');
+            $currentTime = $today->format('H:i:s');
 
             \Log::info('Check out attempt', [
                 'user_id' => $user->id,
-                'date' => $today,
-                'time' => $currentTime
+                'date' => $today->format('Y-m-d'),
+                'time' => $currentTime,
+                'location' => [
+                    'latitude' => $request->latitude,
+                    'longitude' => $request->longitude
+                ]
             ]);
 
             // Cari absensi hari ini
             $attendance = Attendance::where('user_id', $user->id)
-                ->whereDate('date', $today)
+                ->whereDate('date', $today->format('Y-m-d'))
                 ->first();
 
             if (!$attendance) {
                 \Log::warning('No check-in found for today', [
                     'user_id' => $user->id,
-                    'date' => $today
+                    'date' => $today->format('Y-m-d')
                 ]);
                 return response()->json([
+                    'success' => false,
                     'message' => 'Anda belum melakukan absensi masuk hari ini'
                 ], 400);
             }
@@ -161,10 +169,11 @@ class AttendanceController extends Controller
             if ($attendance->check_out) {
                 \Log::warning('Already checked out today', [
                     'user_id' => $user->id,
-                    'date' => $today,
+                    'date' => $today->format('Y-m-d'),
                     'check_out' => $attendance->check_out
                 ]);
                 return response()->json([
+                    'success' => false,
                     'message' => 'Anda sudah melakukan absensi pulang hari ini'
                 ], 400);
             }
@@ -179,26 +188,31 @@ class AttendanceController extends Controller
 
             \Log::info('Check out successful', [
                 'user_id' => $user->id,
-                'date' => $today,
+                'date' => $today->format('Y-m-d'),
                 'check_out' => $currentTime
             ]);
 
-            // Ambil data terbaru untuk response
+            // Ambil data terbaru
             $updatedData = $this->index()->getData();
 
             return response()->json([
+                'success' => true,
                 'message' => 'Absensi pulang berhasil',
-                'data' => $attendance->fresh(),
-                'statistics' => $updatedData->statistics,
-                'monthly' => $updatedData->monthly
+                'data' => $attendance,
+                'monthly' => $updatedData->monthly,
+                'statistics' => $updatedData->statistics
             ]);
+
         } catch (\Exception $e) {
             \Log::error('Check out error', [
+                'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
             return response()->json([
-                'message' => 'Terjadi kesalahan saat melakukan absensi pulang'
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat melakukan absensi pulang: ' . $e->getMessage()
             ], 500);
         }
     }
