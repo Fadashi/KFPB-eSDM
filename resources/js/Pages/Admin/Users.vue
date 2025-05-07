@@ -1,32 +1,23 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { ref, computed, onMounted } from 'vue';
+import { Head, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+
+const props = defineProps({
+  users: Object,
+  filters: Object,
+});
 
 const sidebarCollapsed = ref(false);
 const handleSidebarCollapse = (isCollapsed) => {
   sidebarCollapsed.value = isCollapsed;
 };
 
-// Data untuk tabel user (nanti bisa diintegrasikan dengan API)
-const users = ref([
-  { id: 1, name: 'John Doe', username: 'johndoe666', role: 'pegawai', status: 'Active' },
-  { id: 2, name: 'Jane Smith', username: 'janesmith123', role: 'atasan', status: 'Active' },
-  { id: 3, name: 'Admin User', username: 'admin001', role: 'admin', status: 'Active' },
-]);
-
 // State untuk modal create dan edit user
 const showCreateModal = ref(false);
 const showEditModal = ref(false);
 const showDeleteModal = ref(false);
 const selectedUser = ref(null);
-const newUser = ref({
-  name: '',
-  username: '',
-  password: '',
-  password_confirmation: '',
-  role: 'pegawai',
-});
 
 // State untuk visibility password
 const showPassword = ref(false);
@@ -34,57 +25,71 @@ const showPasswordConfirmation = ref(false);
 const showEditPassword = ref(false);
 
 // State untuk pagination
-const currentPage = ref(1);
-const perPage = ref(10);
+const currentPage = ref(props.users?.current_page || 1);
+const perPage = ref(props.filters?.per_page || 10);
 const perPageOptions = [5, 10, 20, 50];
 
 // State untuk pencarian
-const searchQuery = ref('');
-const filterRole = ref('all');
+const searchQuery = ref(props.filters?.search || '');
+const filterRole = ref(props.filters?.role || 'all');
 
-// Computed property untuk filtered users
-const filteredUsers = computed(() => {
-  return users.value.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-                         user.username.toLowerCase().includes(searchQuery.value.toLowerCase());
-    const matchesRole = filterRole.value === 'all' || user.role === filterRole.value;
-    return matchesSearch && matchesRole;
+// Form untuk create user baru
+const createForm = useForm({
+  name: '',
+  username: '',
+  password: '',
+  password_confirmation: '',
+  role: 'pegawai',
+});
+
+// Form untuk edit user
+const editForm = useForm({
+  id: '',
+  name: '',
+  username: '',
+  password: '',
+  role: '',
+  status: '',
+});
+
+// Method untuk mencari user
+const searchUsers = () => {
+  currentPage.value = 1;
+  applyFilters();
+};
+
+// Method untuk mengubah filter role
+const changeFilterRole = () => {
+  currentPage.value = 1;
+  applyFilters();
+};
+
+// Method untuk menerapkan filters dan pagination
+const applyFilters = () => {
+  editForm.get(route('admin.users.index'), {
+    preserveState: true,
+    preserveScroll: true,
+    only: ['users'],
+    data: {
+      page: currentPage.value,
+      per_page: perPage.value,
+      search: searchQuery.value,
+      role: filterRole.value,
+    },
   });
-});
-
-// Computed property untuk total items
-const totalItems = computed(() => {
-  return filteredUsers.value.length;
-});
-
-// Computed property untuk total halaman
-const totalPages = computed(() => {
-  return Math.ceil(filteredUsers.value.length / perPage.value);
-});
-
-// Computed property untuk range items yang ditampilkan
-const displayedItemsRange = computed(() => {
-  const start = (currentPage.value - 1) * perPage.value + 1;
-  const end = Math.min(currentPage.value * perPage.value, totalItems.value);
-  return `${start}-${end}`;
-});
-
-// Computed property untuk users yang ditampilkan sesuai pagination
-const paginatedUsers = computed(() => {
-  const start = (currentPage.value - 1) * perPage.value;
-  const end = start + perPage.value;
-  return filteredUsers.value.slice(start, end);
-});
+};
 
 // Fungsi untuk mengubah halaman
 const changePage = (page) => {
   currentPage.value = page;
+  applyFilters();
 };
 
 // Fungsi untuk mengubah jumlah item per halaman
 const changePerPage = (value) => {
   perPage.value = parseInt(value);
   currentPage.value = 1; // Reset ke halaman pertama
+  applyFilters();
 };
 
 // Method untuk membuka modal create
@@ -92,13 +97,8 @@ const openCreateModal = () => {
   showCreateModal.value = true;
   showPassword.value = false;
   showPasswordConfirmation.value = false;
-  newUser.value = {
-    name: '',
-    username: '',
-    password: '',
-    password_confirmation: '',
-    role: 'pegawai',
-  };
+  createForm.reset();
+  createForm.clearErrors();
 };
 
 // Method untuk menutup modal create
@@ -106,21 +106,21 @@ const closeCreateModal = () => {
   showCreateModal.value = false;
   showPassword.value = false;
   showPasswordConfirmation.value = false;
-  newUser.value = {
-    name: '',
-    username: '',
-    password: '',
-    password_confirmation: '',
-    role: 'pegawai',
-  };
+  createForm.reset();
+  createForm.clearErrors();
 };
 
 // Method untuk membuka modal edit
 const openEditModal = (user) => {
-  selectedUser.value = {
-    ...user,
-    password: '' // Tambahkan field password kosong
-  };
+  editForm.clearErrors();
+  editForm.id = user.id;
+  editForm.name = user.name;
+  editForm.username = user.username;
+  editForm.password = '';
+  editForm.role = user.role;
+  editForm.status = user.status;
+  
+  selectedUser.value = user;
   showEditModal.value = true;
   showEditPassword.value = false;
 };
@@ -130,6 +130,8 @@ const closeEditModal = () => {
   showEditModal.value = false;
   showEditPassword.value = false;
   selectedUser.value = null;
+  editForm.reset();
+  editForm.clearErrors();
 };
 
 // Method untuk membuka modal delete
@@ -144,68 +146,54 @@ const closeDeleteModal = () => {
   selectedUser.value = null;
 };
 
-// Method untuk validasi password
-const validatePassword = () => {
-  if (newUser.value.password !== newUser.value.password_confirmation) {
-    alert('Password dan konfirmasi password harus sama!');
-    return false;
-  }
-  return true;
-};
-
 // Method untuk submit form create
 const createUser = () => {
-  // Validasi password
-  if (!validatePassword()) return;
-
-  // Generate ID sederhana (dalam implementasi nyata akan dari backend)
-  const newId = Math.max(...users.value.map(u => u.id)) + 1;
-
-  // Tambah user baru ke array
-  users.value.push({
-    id: newId,
-    ...newUser.value,
-    status: 'Active'
+  createForm.post(route('admin.users.store'), {
+    onSuccess: () => {
+      closeCreateModal();
+    }
   });
-
-  // Tampilkan notifikasi sukses (bisa disesuaikan)
-  alert('User berhasil ditambahkan!');
-
-  closeCreateModal();
 };
 
 // Method untuk submit form edit
 const updateUser = () => {
-  // Update user dalam array
-  const index = users.value.findIndex(u => u.id === selectedUser.value.id);
-  if (index !== -1) {
-    // Jika password kosong, jangan update password
-    const updatedUser = {
-      ...users.value[index],
-      ...selectedUser.value
-    };
-    if (!selectedUser.value.password) {
-      delete updatedUser.password;
+  editForm.put(route('admin.users.update', editForm.id), {
+    onSuccess: () => {
+      closeEditModal();
     }
-    users.value[index] = updatedUser;
-  }
-
-  // Tampilkan notifikasi sukses (bisa disesuaikan)
-  alert('User berhasil diupdate!');
-
-  closeEditModal();
+  });
 };
 
 // Method untuk konfirmasi delete
 const deleteUser = () => {
-  // Hapus user dari array
-  users.value = users.value.filter(u => u.id !== selectedUser.value.id);
-
-  // Tampilkan notifikasi sukses (bisa disesuaikan)
-  alert('User berhasil dihapus!');
-
-  closeDeleteModal();
+  if (selectedUser.value) {
+    useForm().delete(route('admin.users.destroy', selectedUser.value.id), {
+      onSuccess: () => {
+        closeDeleteModal();
+      }
+    });
+  }
 };
+
+// Computed untuk menampilkan range item
+const displayedItemsRange = computed(() => {
+  if (!props.users || !props.users.data || props.users.data.length === 0) {
+    return '0-0';
+  }
+  const from = props.users.from || ((currentPage.value - 1) * perPage.value + 1);
+  const to = props.users.to || Math.min(currentPage.value * perPage.value, props.users.total);
+  return `${from}-${to}`;
+});
+
+// Computed untuk total pages
+const totalPages = computed(() => {
+  return props.users?.last_page || 1;
+});
+
+// Computed untuk total items
+const totalItems = computed(() => {
+  return props.users?.total || 0;
+});
 </script>
 
 <template>
@@ -247,6 +235,7 @@ const deleteUser = () => {
                 <input
                   type="text"
                   v-model="searchQuery"
+                  @keyup.enter="searchUsers"
                   placeholder="Cari nama atau username..."
                   class="w-full md:w-64 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -256,6 +245,7 @@ const deleteUser = () => {
               </div>
               <select
                 v-model="filterRole"
+                @change="changeFilterRole"
                 class="w-full md:w-48 px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Semua Role</option>
@@ -280,11 +270,11 @@ const deleteUser = () => {
               </thead>
               <tbody>
                 <tr
-                  v-for="(user, index) in paginatedUsers"
+                  v-for="(user, index) in props.users?.data"
                   :key="user.id"
                   class="border-b hover:bg-gray-50 transition duration-200"
                 >
-                  <td class="p-2 text-sm">{{ (currentPage - 1) * perPage + index + 1 }}</td>
+                  <td class="p-2 text-sm">{{ props.users.from + index }}</td>
                   <td class="p-2">
                     <div class="text-sm font-medium text-gray-900">{{ user.name }}</div>
                   </td>
@@ -320,7 +310,7 @@ const deleteUser = () => {
                     </div>
                   </td>
                 </tr>
-                <tr v-if="paginatedUsers.length === 0">
+                <tr v-if="!props.users?.data || props.users.data.length === 0">
                   <td colspan="6" class="p-2 text-center text-sm text-gray-500">
                     Tidak ada user yang ditemukan
                   </td>
@@ -407,12 +397,28 @@ const deleteUser = () => {
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700">Nama</label>
-              <input type="text" v-model="newUser.name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+              <input 
+                type="text" 
+                v-model="createForm.name" 
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                required
+              >
+              <div v-if="createForm.errors.name" class="text-red-500 text-sm mt-1">
+                {{ createForm.errors.name }}
+              </div>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">username</label>
-              <input type="username" v-model="newUser.username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+              <label class="block text-sm font-medium text-gray-700">Username</label>
+              <input 
+                type="text" 
+                v-model="createForm.username" 
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                required
+              >
+              <div v-if="createForm.errors.username" class="text-red-500 text-sm mt-1">
+                {{ createForm.errors.username }}
+              </div>
             </div>
 
             <div class="relative">
@@ -420,7 +426,7 @@ const deleteUser = () => {
               <div class="relative">
                 <input
                   :type="showPassword ? 'text' : 'password'"
-                  v-model="newUser.password"
+                  v-model="createForm.password"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
                   required
                 >
@@ -432,6 +438,9 @@ const deleteUser = () => {
                   <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
                 </button>
               </div>
+              <div v-if="createForm.errors.password" class="text-red-500 text-sm mt-1">
+                {{ createForm.errors.password }}
+              </div>
             </div>
 
             <div class="relative">
@@ -439,7 +448,7 @@ const deleteUser = () => {
               <div class="relative">
                 <input
                   :type="showPasswordConfirmation ? 'text' : 'password'"
-                  v-model="newUser.password_confirmation"
+                  v-model="createForm.password_confirmation"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
                   required
                 >
@@ -455,11 +464,17 @@ const deleteUser = () => {
 
             <div>
               <label class="block text-sm font-medium text-gray-700">Role</label>
-              <select v-model="newUser.role" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                <option value="pegawai">User</option>
+              <select 
+                v-model="createForm.role" 
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="pegawai">Pegawai</option>
                 <option value="atasan">Atasan</option>
                 <option value="admin">Admin</option>
               </select>
+              <div v-if="createForm.errors.role" class="text-red-500 text-sm mt-1">
+                {{ createForm.errors.role }}
+              </div>
             </div>
           </div>
 
@@ -467,8 +482,12 @@ const deleteUser = () => {
             <button type="button" @click="closeCreateModal" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
               Batal
             </button>
-            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-              Simpan
+            <button 
+              type="submit" 
+              class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              :disabled="createForm.processing"
+            >
+              {{ createForm.processing ? 'Menyimpan...' : 'Simpan' }}
             </button>
           </div>
         </form>
@@ -489,12 +508,28 @@ const deleteUser = () => {
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700">Nama</label>
-              <input type="text" v-model="selectedUser.name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+              <input 
+                type="text" 
+                v-model="editForm.name" 
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                required
+              >
+              <div v-if="editForm.errors.name" class="text-red-500 text-sm mt-1">
+                {{ editForm.errors.name }}
+              </div>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">username</label>
-              <input type="username" v-model="selectedUser.username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+              <label class="block text-sm font-medium text-gray-700">Username</label>
+              <input 
+                type="text" 
+                v-model="editForm.username" 
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                required
+              >
+              <div v-if="editForm.errors.username" class="text-red-500 text-sm mt-1">
+                {{ editForm.errors.username }}
+              </div>
             </div>
 
             <div class="relative">
@@ -505,7 +540,7 @@ const deleteUser = () => {
               <div class="relative">
                 <input
                   :type="showEditPassword ? 'text' : 'password'"
-                  v-model="selectedUser.password"
+                  v-model="editForm.password"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
                 >
                 <button
@@ -516,23 +551,38 @@ const deleteUser = () => {
                   <i :class="showEditPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
                 </button>
               </div>
+              <div v-if="editForm.errors.password" class="text-red-500 text-sm mt-1">
+                {{ editForm.errors.password }}
+              </div>
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700">Role</label>
-              <select v-model="selectedUser.role" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                <option value="User">User</option>
-                <option value="Admin">Admin</option>
+              <select 
+                v-model="editForm.role" 
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="pegawai">Pegawai</option>
+                <option value="atasan">Atasan</option>
+                <option value="admin">Admin</option>
               </select>
+              <div v-if="editForm.errors.role" class="text-red-500 text-sm mt-1">
+                {{ editForm.errors.role }}
+              </div>
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700">Status</label>
-              <select v-model="selectedUser.status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+              <select 
+                v-model="editForm.status" 
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
-                <option value="Suspended">Suspended</option>
               </select>
+              <div v-if="editForm.errors.status" class="text-red-500 text-sm mt-1">
+                {{ editForm.errors.status }}
+              </div>
             </div>
           </div>
 
@@ -540,8 +590,12 @@ const deleteUser = () => {
             <button type="button" @click="closeEditModal" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
               Batal
             </button>
-            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-              Update
+            <button 
+              type="submit" 
+              class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              :disabled="editForm.processing"
+            >
+              {{ editForm.processing ? 'Mengupdate...' : 'Update' }}
             </button>
           </div>
         </form>
@@ -561,7 +615,10 @@ const deleteUser = () => {
           <button @click="closeDeleteModal" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
             Batal
           </button>
-          <button @click="deleteUser" class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+          <button 
+            @click="deleteUser" 
+            class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          >
             Hapus
           </button>
         </div>
