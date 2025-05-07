@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
@@ -67,9 +67,56 @@ const auditLogs = ref([
   },
 ]);
 
+// Fungsi untuk memformat tanggal
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const day = date.getDate();
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 
+                      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  const time = dateString.split(' ')[1];
+  
+  return `${day} ${month} ${year} ${time}`;
+};
+
+// Referensi global untuk gambar logo yang akan digunakan dalam PDF
+const logoDataUrl = ref('');
+
+// Fungsi untuk mengonversi gambar ke data URL
+const convertImageToDataUrl = () => {
+  const img = new Image();
+  img.crossOrigin = 'Anonymous';
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    logoDataUrl.value = canvas.toDataURL('image/png');
+  };
+  img.src = '/images/KF_Logo.png';
+};
+
+// Panggil fungsi konversi saat component mounted
+onMounted(() => {
+  convertImageToDataUrl();
+});
+
 // State untuk filter dan pencarian
 const searchQuery = ref('');
 const filterAction = ref('all');
+
+// State untuk filter tanggal
+const startDate = ref('');
+const endDate = ref('');
+
+// State untuk modal download
+const showDownloadModal = ref(false);
+const downloadStartDate = ref('');
+const downloadEndDate = ref('');
+const downloadFilterAction = ref('all');
+const downloadFormat = ref('pdf');
 
 // State untuk pagination
 const currentPage = ref(1);
@@ -89,7 +136,23 @@ const filteredLogs = computed(() => {
       log.old_value.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       log.new_value.toLowerCase().includes(searchQuery.value.toLowerCase());
     const matchesAction = filterAction.value === 'all' || log.action === filterAction.value;
-    return matchesSearch && matchesAction;
+    
+    // Filter berdasarkan tanggal jika ada
+    let matchesDate = true;
+    if (startDate.value) {
+      const logDate = new Date(log.timestamp);
+      const filterStartDate = new Date(startDate.value);
+      matchesDate = matchesDate && logDate >= filterStartDate;
+    }
+    if (endDate.value) {
+      const logDate = new Date(log.timestamp);
+      const filterEndDate = new Date(endDate.value);
+      // Tambahkan 1 hari ke endDate untuk mencakup seluruh hari yang dipilih
+      filterEndDate.setDate(filterEndDate.getDate() + 1);
+      matchesDate = matchesDate && logDate < filterEndDate;
+    }
+    
+    return matchesSearch && matchesAction && matchesDate;
   });
 });
 
@@ -127,6 +190,243 @@ const changePerPage = (value) => {
   perPage.value = parseInt(value);
   currentPage.value = 1; // Reset ke halaman pertama
 };
+
+// Fungsi untuk membuka modal download
+const openDownloadModal = () => {
+  downloadStartDate.value = startDate.value;
+  downloadEndDate.value = endDate.value;
+  downloadFilterAction.value = filterAction.value;
+  showDownloadModal.value = true;
+};
+
+// Fungsi untuk menutup modal download
+const closeDownloadModal = () => {
+  showDownloadModal.value = false;
+};
+
+// Fungsi untuk download laporan
+const downloadReport = () => {
+  // Filter logs berdasarkan kriteria download
+  const logsToDownload = auditLogs.value.filter(log => {
+    const matchesAction = downloadFilterAction.value === 'all' || log.action === downloadFilterAction.value;
+    
+    // Filter berdasarkan tanggal jika ada
+    let matchesDate = true;
+    if (downloadStartDate.value) {
+      const logDate = new Date(log.timestamp);
+      const filterStartDate = new Date(downloadStartDate.value);
+      matchesDate = matchesDate && logDate >= filterStartDate;
+    }
+    if (downloadEndDate.value) {
+      const logDate = new Date(log.timestamp);
+      const filterEndDate = new Date(downloadEndDate.value);
+      filterEndDate.setDate(filterEndDate.getDate() + 1);
+      matchesDate = matchesDate && logDate < filterEndDate;
+    }
+    
+    return matchesAction && matchesDate;
+  });
+  
+  // Buat konten HTML untuk laporan
+  let reportContent = `
+    <html>
+    <head>
+      <title>Laporan Audit Trail</title>
+      <style>
+        @page {
+          size: A4;
+          margin: 0;
+        }
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          color: #333;
+        }
+        .cover {
+          height: 100vh;
+          padding: 40px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+          page-break-after: always;
+        }
+        .cover img {
+          width: 200px;
+          margin-bottom: 40px;
+        }
+        .cover h1 {
+          font-size: 24px;
+          font-weight: bold;
+          margin: 20px 0;
+          color: #1a5f7a;
+        }
+        .cover h2 {
+          font-size: 20px;
+          margin: 10px 0;
+          color: #2c3e50;
+        }
+        .cover p {
+          font-size: 16px;
+          margin: 10px 0;
+          color: #666;
+        }
+        .content {
+          padding: 30px;
+        }
+        .header {
+          padding: 20px 30px;
+          border-bottom: 2px solid #eee;
+          margin-bottom: 20px;
+        }
+        .header img {
+          height: 40px;
+        }
+        .footer {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 15px 30px;
+          background: #f8f9fa;
+          border-top: 1px solid #eee;
+          font-size: 12px;
+          color: #666;
+          text-align: center;
+        }
+        .page-number:before {
+          content: "Halaman " counter(page);
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 20px 0;
+        }
+        th, td {
+          padding: 12px;
+          text-align: left;
+          border-bottom: 1px solid #ddd;
+          font-size: 14px;
+        }
+        th {
+          background-color: #f8f9fa;
+          font-weight: bold;
+          color: #2c3e50;
+        }
+        tr:nth-child(even) {
+          background-color: #f9f9f9;
+        }
+        .report-info {
+          margin: 20px 0;
+          padding: 15px;
+          background: #f8f9fa;
+          border-radius: 5px;
+        }
+        .report-info p {
+          margin: 5px 0;
+          font-size: 14px;
+        }
+        @media print {
+          .page-break {
+            page-break-before: always;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <!-- Cover Page -->
+      <div class="cover">
+        <img src="${logoDataUrl.value || '/images/KF_Logo.png'}" alt="Logo Kimia Farma">
+        <h1>PT. KIMIA FARMA PLANT BANJARAN</h1>
+        <h2>LAPORAN AUDIT TRAIL</h2>
+        <h2>Sistem Manajemen SDM Kimia Farma Plant Banjaran 2.0</h2>
+        <p>Jl. Raya Banjaran KM.16, Kab.Bandung, Jawa Barat</p>
+      </div>
+
+      <!-- Content Pages -->
+      <div class="content">
+        <!-- Header di setiap halaman -->
+        <div class="header">
+          <img src="${logoDataUrl.value || '/images/KF_Logo.png'}" alt="Logo Kimia Farma">
+        </div>
+
+        <div class="report-info">
+          <h2 style="margin-top: 0;">Laporan Audit Trail</h2>
+          <p>
+            <strong>Periode:</strong> ${downloadStartDate.value ? new Date(downloadStartDate.value).toLocaleDateString('id-ID') : 'Semua'} 
+            ${downloadEndDate.value ? ' - ' + new Date(downloadEndDate.value).toLocaleDateString('id-ID') : ''}
+          </p>
+          <p><strong>Filter Aksi:</strong> ${downloadFilterAction.value === 'all' ? 'Semua' : downloadFilterAction.value}</p>
+          <p><strong>Total Entri:</strong> ${logsToDownload.length}</p>
+          <p><strong>Tanggal Cetak:</strong> ${new Date().toLocaleString('id-ID')}</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Waktu</th>
+              <th>Nama</th>
+              <th>Role</th>
+              <th>Aksi</th>
+              <th>Data</th>
+              <th>Value Asal</th>
+              <th>Value Baru</th>
+            </tr>
+          </thead>
+          <tbody>
+  `;
+  
+  // Tambahkan data ke laporan
+  logsToDownload.forEach((log, index) => {
+    reportContent += `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${formatDate(log.timestamp)}</td>
+        <td>${log.user.name}</td>
+        <td>${log.user.role}</td>
+        <td>${log.action}</td>
+        <td>${log.data}</td>
+        <td>${log.old_value}</td>
+        <td>${log.new_value}</td>
+      </tr>
+    `;
+  });
+  
+  // Tutup tabel dan tambahkan footer
+  reportContent += `
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer di setiap halaman -->
+      <div class="footer">
+        <div style="float: left;">PT. Kimia Farma Plant Banjaran</div>
+        <div style="float: right;" class="page-number"></div>
+        <div style="clear: both;"></div>
+      </div>
+    </body>
+    </html>
+  `;
+  
+  // Buat blob dan buka di tab baru untuk PDF
+  const blob = new Blob([reportContent], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const reportWindow = window.open(url, '_blank');
+  
+  // Trigger print dialog untuk save as PDF
+  reportWindow.onload = () => {
+    setTimeout(() => {
+      reportWindow.print();
+    }, 1000);
+  };
+  
+  // Tutup modal
+  closeDownloadModal();
+};
 </script>
 
 <template>
@@ -159,27 +459,56 @@ const changePerPage = (value) => {
       <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 space-y-4 md:space-y-0">
         <h2 class="text-lg font-semibold">Riwayat Audit</h2>
         <div class="flex flex-col md:flex-row gap-4">
-          <div class="relative">
-            <input
-              type="text"
-              v-model="searchQuery"
-              placeholder="Cari riwayat audit..."
-              class="w-full md:w-64 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-            <div class="absolute left-3 top-2.5 text-gray-400">
-              <i class="fas fa-search"></i>
-            </div>
-          </div>
-          <select
-            v-model="filterAction"
-            class="w-full md:w-48 px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <!-- Tombol Download Report -->
+          <button 
+            @click="openDownloadModal"
+            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm flex items-center justify-center"
           >
-            <option value="all">Semua Aksi</option>
-            <option value="Tambah">Tambah</option>
-            <option value="Update">Update</option>
-            <option value="Hapus">Hapus</option>
-            <option value="Reset">Reset</option>
-          </select>
+            <i class="fas fa-download mr-2"></i>
+            Download Laporan
+          </button>
+        </div>
+      </div>
+      
+      <!-- Filter Section -->
+      <div class="flex flex-col md:flex-row gap-4 mb-4">
+        <div class="relative">
+          <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="Cari riwayat audit..."
+            class="w-full md:w-64 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+          <div class="absolute left-3 top-2.5 text-gray-400">
+            <i class="fas fa-search"></i>
+          </div>
+        </div>
+        
+        <select
+          v-model="filterAction"
+          class="w-full md:w-48 px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">Semua Aksi</option>
+          <option value="Tambah">Tambah</option>
+          <option value="Update">Update</option>
+          <option value="Hapus">Hapus</option>
+          <option value="Reset">Reset</option>
+        </select>
+        
+        <div class="flex flex-col md:flex-row gap-2 items-center">
+          <input
+            type="date"
+            v-model="startDate"
+            class="w-full md:w-40 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Tanggal Mulai"
+          >
+          <span class="text-sm text-gray-600 px-1">s/d</span>
+          <input
+            type="date"
+            v-model="endDate"
+            class="w-full md:w-40 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Tanggal Akhir"
+          >
         </div>
       </div>
 
@@ -188,7 +517,6 @@ const changePerPage = (value) => {
           <thead class="bg-gray-100">
             <tr>
               <th class="p-2 text-left">No</th>
-              <th class="p-2 text-left">ID</th>
               <th class="p-2 text-left">Waktu</th>
               <th class="p-2 text-left">Nama</th>
               <th class="p-2 text-left">Role</th>
@@ -205,8 +533,7 @@ const changePerPage = (value) => {
               class="border-b hover:bg-gray-50 transition duration-200"
             >
               <td class="p-2 text-sm">{{ (currentPage - 1) * perPage + index + 1 }}</td>
-              <td class="p-2 text-sm">{{ log.id }}</td>
-              <td class="p-2 text-sm">{{ log.timestamp }}</td>
+              <td class="p-2 text-sm">{{ formatDate(log.timestamp) }}</td>
               <td class="p-2 text-sm">{{ log.user.name }}</td>
               <td class="p-2 text-sm">{{ log.user.role }}</td>
               <td class="p-2">
@@ -227,7 +554,7 @@ const changePerPage = (value) => {
               <td class="p-2 text-sm">{{ log.new_value }}</td>
             </tr>
             <tr v-if="paginatedLogs.length === 0">
-              <td colspan="9" class="p-2 text-center text-sm text-gray-500">
+              <td colspan="8" class="p-2 text-center text-sm text-gray-500">
                 Tidak ada riwayat audit yang ditemukan
               </td>
             </tr>
@@ -293,6 +620,81 @@ const changePerPage = (value) => {
           >
             <i class="fas fa-chevron-right"></i>
           </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal Download Report -->
+    <div v-if="showDownloadModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">Download Laporan Audit Trail</h3>
+          <button @click="closeDownloadModal" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+            <input 
+              type="date" 
+              v-model="downloadStartDate"
+              class="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Akhir</label>
+            <input 
+              type="date" 
+              v-model="downloadEndDate"
+              class="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Filter Aksi</label>
+            <select
+              v-model="downloadFilterAction"
+              class="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Semua Aksi</option>
+              <option value="Tambah">Tambah</option>
+              <option value="Update">Update</option>
+              <option value="Hapus">Hapus</option>
+              <option value="Reset">Reset</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Format</label>
+            <div class="flex gap-4">
+              <label class="inline-flex items-center">
+                <input type="radio" v-model="downloadFormat" value="pdf" class="form-radio h-4 w-4 text-blue-600">
+                <span class="ml-2 text-sm text-gray-700">PDF</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="radio" v-model="downloadFormat" value="print" class="form-radio h-4 w-4 text-blue-600">
+                <span class="ml-2 text-sm text-gray-700">Print</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="flex justify-end space-x-3 mt-6">
+            <button 
+              @click="closeDownloadModal"
+              class="px-4 py-2 border rounded-md text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Batal
+            </button>
+            <button 
+              @click="downloadReport"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
+            >
+              Download PDF
+            </button>
+          </div>
         </div>
       </div>
     </div>
