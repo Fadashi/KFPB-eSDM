@@ -16,6 +16,8 @@ use App\Http\Controllers\RefEselonController;
 use App\Http\Controllers\RefBerkasController;
 use App\Http\Controllers\RefPayrollController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\AuditTrailController;
+use App\Http\Controllers\Admin\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -117,14 +119,23 @@ Route::middleware(['auth'])->group(function () {
     })->middleware('checkRole:admin')->name('admin.announcement');
 
     //User Management
-    Route::get('/admin/users', function () {
-        return Inertia::render('Admin/Users');
-    })->middleware('checkRole:admin')->name('admin.users');
+    Route::get('/admin/users', [UserController::class, 'index'])
+        ->middleware('checkRole:admin')
+        ->name('admin.users');
+    Route::post('/admin/users', [UserController::class, 'store'])
+        ->middleware('checkRole:admin')
+        ->name('admin.users.store');
+    Route::put('/admin/users/{id}', [UserController::class, 'update'])
+        ->middleware('checkRole:admin')
+        ->name('admin.users.update');
+    Route::delete('/admin/users/{id}', [UserController::class, 'destroy'])
+        ->middleware('checkRole:admin')
+        ->name('admin.users.destroy');
 
-    //Audit Trail
-    Route::get('/admin/audit-trail', function () {
-        return Inertia::render('Admin/Audit-trail');
-        })->middleware('checkRole:admin')->name('admin.audit-trail');
+    // Audit Trail
+    Route::get('/admin/audit-trail', [AuditTrailController::class, 'index'])
+        ->middleware('checkRole:admin')
+        ->name('admin.audit-trail');
 
     //Pengaturan
     Route::get('/admin/settings', function () {
