@@ -21,4 +21,12 @@ class RefBagian extends Model
         'kode',
         'bagian',
     ];
+
+    /**
+     * Dapatkan semua karyawan di bagian ini
+     */
+    public function employees()
+    {
+        return $this->hasMany(Employee::class, 'department_id');
+    }
 }

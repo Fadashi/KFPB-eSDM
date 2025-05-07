@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { Line, Pie } from 'vue-chartjs';
 import Sidebar from '@/Components/Sidebar.vue';
 import Topbar from '@/Components/Topbar.vue';
@@ -29,73 +29,36 @@ ChartJS.register(
   ArcElement
 );
 
-const sidebarCollapsed = ref(false);
-
-// Data statistik
-const statistics = ref({
-  totalEmployees: 100,
-  totalDepartments: 8,
-  totalSubDepartments: 15,
-  presentToday: 45,
-  late: 2,
-  onLeave: 3,
-  pendingLeaveRequests: 5,
-  activeProjects: 12,
-  upcomingEvents: 3
+// Dapatkan props dari controller
+const props = defineProps({
+  statistics: Object,
+  attendanceChartData: Object,
+  departmentChartData: Object,
+  leaveRequests: Array,
+  announcements: Array
 });
 
-// Data untuk grafik kehadiran
-const attendanceChartData = {
-  labels: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'],
-  datasets: [
-    {
-      label: 'Kehadiran',
-      backgroundColor: '#4CAF50',
-      borderColor: '#4CAF50',
-      data: [95, 93, 97, 94, 96],
-    },
-    {
-      label: 'Keterlambatan',
-      backgroundColor: '#FFC107',
-      borderColor: '#FFC107',
-      data: [5, 7, 3, 6, 4],
-    },
-  ],
-};
+const sidebarCollapsed = ref(false);
 
-// Data untuk grafik departemen
-const departmentChartData = {
-  labels: ['IT', 'HR', 'Finance', 'Marketing', 'Operations'],
-  datasets: [{
-    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
-    data: [12, 8, 6, 10, 14]
-  }]
-};
+// Data statistik dari controller
+const statistics = ref(props.statistics);
+
+// Data untuk grafik kehadiran dari controller
+const attendanceChartData = props.attendanceChartData;
+
+// Data untuk grafik departemen dari controller
+const departmentChartData = props.departmentChartData;
 
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
 };
 
-// Data aktivitas terbaru
-const recentActivities = ref([
-  { id: 1, type: 'new_employee', message: 'Karyawan baru ditambahkan: Budi Santoso', time: '5 menit yang lalu' },
-  { id: 2, type: 'leave_request', message: 'Pengajuan cuti dari Ani Wijaya', time: '10 menit yang lalu' },
-  { id: 3, type: 'attendance', message: '45 karyawan telah melakukan absensi', time: '30 menit yang lalu' },
-]);
+// Data cuti dari controller
+const leaveRequests = ref(props.leaveRequests);
 
-// Data cuti
-const leaveRequests = ref([
-  { id: 1, employee: 'Ani Wijaya', type: 'Cuti Tahunan', startDate: '2024-03-20', endDate: '2024-03-22', status: 'Pending' },
-  { id: 2, employee: 'Budi Santoso', type: 'Sakit', startDate: '2024-03-19', endDate: '2024-03-19', status: 'Approved' },
-]);
-
-// Data pengumuman
-const announcements = ref([
-  { id: 1, title: 'Rapat Bulanan', content: 'Rapat bulanan akan diadakan pada tanggal 25 Maret 2024', date: '2024-03-18' },
-  { id: 2, title: 'Training React', content: 'Training React untuk tim frontend dijadwalkan minggu depan', date: '2024-03-17' },
-]);
-
+// Data pengumuman dari controller
+const announcements = ref(props.announcements);
 
 const approveLeave = (requestId) => {
   // Logic to approve leave
@@ -173,6 +136,54 @@ const rejectLeave = (requestId) => {
         </div>
       </div>
 
+      <!-- Statistik Panel -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="rounded-full p-3 bg-blue-100">
+              <i class="fas fa-user-check text-xl text-blue-600"></i>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Hadir Hari Ini</p>
+              <p class="text-2xl font-semibold">{{ statistics.presentToday }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="rounded-full p-3 bg-yellow-100">
+              <i class="fas fa-hourglass-half text-xl text-yellow-600"></i>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Terlambat</p>
+              <p class="text-2xl font-semibold">{{ statistics.late }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="rounded-full p-3 bg-green-100">
+              <i class="fas fa-calendar-alt text-xl text-green-600"></i>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Cuti</p>
+              <p class="text-2xl font-semibold">{{ statistics.onLeave }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="rounded-full p-3 bg-purple-100">
+              <i class="fas fa-clipboard-list text-xl text-purple-600"></i>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Menunggu Persetujuan</p>
+              <p class="text-2xl font-semibold">{{ statistics.pendingLeaveRequests }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Pengajuan Cuti Terbaru -->
       <div class="bg-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-center mb-4">
@@ -204,6 +215,11 @@ const rejectLeave = (requestId) => {
                   </span>
                 </td>
               </tr>
+              <tr v-if="leaveRequests.length === 0">
+                <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                  Tidak ada pengajuan cuti terbaru
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -224,6 +240,9 @@ const rejectLeave = (requestId) => {
               <span class="text-sm text-gray-500">{{ announcement.date }}</span>
             </div>
             <p class="text-gray-600">{{ announcement.content }}</p>
+          </div>
+          <div v-if="announcements.length === 0" class="border rounded-lg p-6 text-center text-gray-500">
+            Tidak ada pengumuman terbaru
           </div>
         </div>
       </div>

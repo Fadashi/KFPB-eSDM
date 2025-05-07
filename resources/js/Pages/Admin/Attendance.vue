@@ -27,94 +27,44 @@ ChartJS.register(
   Legend
 );
 
+// Props dari controller
+const props = defineProps({
+  statistics: Object,
+  chartData: Object,
+  attendanceData: Object,
+});
+
 const sidebarCollapsed = ref(false);
 const handleSidebarCollapse = (isCollapsed) => {
   sidebarCollapsed.value = isCollapsed;
 };
 
-// Data statistik
-const statistics = ref({
-  totalEmployees: 50,
-  presentToday: 45,
-  late: 2,
-  onLeave: 3
-});
-
-// Data untuk grafik
-const chartData = {
-  labels: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'],
-  datasets: [
-    {
-      label: 'Kehadiran',
-      backgroundColor: '#4CAF50',
-      borderColor: '#4CAF50',
-      data: [45, 43, 47, 44, 46],
-    },
-    {
-      label: 'Keterlambatan',
-      backgroundColor: '#FFC107',
-      borderColor: '#FFC107',
-      data: [5, 7, 3, 6, 4],
-    },
-    {
-      label: 'Cuti/Izin',
-      backgroundColor: '#2196F3',
-      borderColor: '#2196F3',
-      data: [3, 2, 4, 1, 2],
-    },
-  ],
-};
-
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-};
-
-// Data aktivitas terbaru
-const recentActivities = ref([
-  { id: 1, type: 'new_employee', message: 'Karyawan baru ditambahkan: Budi Santoso', time: '5 menit yang lalu' },
-  { id: 2, type: 'leave_request', message: 'Pengajuan cuti dari Ani Wijaya', time: '10 menit yang lalu' },
-  { id: 3, type: 'attendance', message: '45 karyawan telah melakukan absensi', time: '30 menit yang lalu' },
-]);
-
-// Dummy data for employees
-const employees = ref([
-  { id: 1, name: 'Budi Santoso', position: 'Frontend Developer', email: 'budi@example.com' },
-  { id: 2, name: 'Dedi Kurniawan', position: 'Backend Developer', email: 'dedi@example.com' },
-  { id: 3, name: 'Rini Susanti', position: 'UI/UX Designer', email: 'rini@example.com' },
-]);
-
-// State untuk filter dan data
-const activeFilter = ref('hadir');
-const filteredEmployees = ref([]);
-
 // Tambahan state untuk pagination
 const currentPage = ref(1);
 const perPage = ref(10);
 const perPageOptions = [5, 10, 20, 50];
+const activeFilter = ref('hadir');
 
-// Data dummy untuk setiap kategori
-const attendanceData = {
-  hadir: [
-    { id: 1, name: 'Budi Santoso', position: 'Frontend Developer', email: 'budi@example.com', time: '08:00' },
-    { id: 2, name: 'Dedi Kurniawan', position: 'Backend Developer', email: 'dedi@example.com', time: '08:05' },
-    { id: 3, name: 'Rini Susanti', position: 'UI/UX Designer', email: 'rini@example.com', time: '07:55' },
-    // Menambah data dummy untuk testing pagination
-    { id: 8, name: 'Eko Prasetyo', position: 'Frontend Developer', email: 'eko@example.com', time: '08:02' },
-    { id: 9, name: 'Nina Wati', position: 'Backend Developer', email: 'nina@example.com', time: '08:07' },
-    { id: 10, name: 'Hadi Sutrisno', position: 'UI/UX Designer', email: 'hadi@example.com', time: '07:58' },
-    { id: 11, name: 'Maya Sari', position: 'Frontend Developer', email: 'maya@example.com', time: '08:01' },
-    { id: 12, name: 'Tono Widodo', position: 'Backend Developer', email: 'tono@example.com', time: '08:03' },
-  ],
-  izin: [
-    { id: 4, name: 'Ahmad Fauzi', position: 'Project Manager', email: 'ahmad@example.com', reason: 'Cuti Tahunan' },
-    { id: 5, name: 'Siti Rahayu', position: 'HR Manager', email: 'siti@example.com', reason: 'Izin Pribadi' },
-  ],
-  terlambat: [
-    { id: 6, name: 'Joko Widodo', position: 'System Analyst', email: 'joko@example.com', time: '09:15' },
-    { id: 7, name: 'Dewi Lestari', position: 'QA Engineer', email: 'dewi@example.com', time: '09:30' },
-  ],
-};
+// Menyiapkan data yang akan ditampilkan berdasarkan filter
+const filteredEmployees = ref([]);
+
+// Computed property untuk total item dari data yang diterima dari controller
+const totalItems = computed(() => {
+  return props.attendanceData && props.attendanceData[activeFilter.value] ? 
+    props.attendanceData[activeFilter.value].length : 0;
+});
+
+// Computed property untuk total halaman
+const totalPages = computed(() => {
+  return Math.ceil(totalItems.value / perPage.value);
+});
+
+// Computed property untuk range items yang ditampilkan
+const displayedItemsRange = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value + 1;
+  const end = Math.min(currentPage.value * perPage.value, totalItems.value);
+  return `${start}-${end}`;
+});
 
 // Fungsi untuk mengubah filter
 const setFilter = (filter) => {
@@ -127,25 +77,13 @@ const setFilter = (filter) => {
 const updateFilteredEmployees = () => {
   const startIndex = (currentPage.value - 1) * perPage.value;
   const endIndex = startIndex + perPage.value;
-  filteredEmployees.value = attendanceData[activeFilter.value].slice(startIndex, endIndex);
+  
+  if (props.attendanceData && props.attendanceData[activeFilter.value]) {
+    filteredEmployees.value = props.attendanceData[activeFilter.value].slice(startIndex, endIndex);
+  } else {
+    filteredEmployees.value = [];
+  }
 };
-
-// Computed property untuk total halaman
-const totalPages = computed(() => {
-  return Math.ceil(attendanceData[activeFilter.value].length / perPage.value);
-});
-
-// Computed property untuk total items
-const totalItems = computed(() => {
-  return attendanceData[activeFilter.value].length;
-});
-
-// Computed property untuk range items yang ditampilkan
-const displayedItemsRange = computed(() => {
-  const start = (currentPage.value - 1) * perPage.value + 1;
-  const end = Math.min(currentPage.value * perPage.value, totalItems.value);
-  return `${start}-${end}`;
-});
 
 // Fungsi untuk mengubah halaman
 const changePage = (page) => {
@@ -226,7 +164,7 @@ setFilter('hadir');
       <div class="bg-white p-6 rounded-lg shadow">
         <h2 class="text-lg font-semibold mb-4">Grafik Kehadiran Minggu Ini</h2>
         <div class="h-80">
-          <Line :data="chartData" :options="chartOptions" />
+          <Line :data="chartData" :options="{ responsive: true, maintainAspectRatio: false }" />
         </div>
       </div>
 

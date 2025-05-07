@@ -65,9 +65,9 @@ Route::middleware('auth')->group(function () {
 // Routes untuk Admin
 Route::middleware(['auth'])->group(function () {
     //Dashboard
-    Route::get('/admin/dashboard', function () {
-        return Inertia::render('Admin/Dashboard');
-    })->middleware('checkRole:admin')->name('admin.dashboard');
+    Route::get('/admin/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])
+        ->middleware('checkRole:admin')
+        ->name('admin.dashboard');
 
     Route::get('/admin/references', function () {
         return Inertia::render('Admin/References');
@@ -149,8 +149,6 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/holidays/{refLibur}', [RefLiburController::class, 'destroy'])->name('holidays.destroy');
 });
 
-
-
 // Routes untuk Atasan
 Route::middleware(['auth', 'checkRole:atasan'])->prefix('atasan')->group(function () {
     Route::get('/dashboard', function () {
@@ -203,4 +201,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn']);
         Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut']);
     });
+});
+
+// Admin Routes
+Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users');
+    Route::get('/attendance', [App\Http\Controllers\Admin\AttendanceController::class, 'index'])->name('attendance');
 });
