@@ -69,24 +69,24 @@ const filteredLogs = computed(() => {
     const q = searchQuery.value.toLowerCase();
     const matchesSearch =
       log.id.toString().includes(q) ||
-      log.created_at.toLowerCase().includes(q) ||
-      log.user.name.toLowerCase().includes(q) ||
-      log.user.role.toLowerCase().includes(q) ||
-      log.aksi.toLowerCase().includes(q) ||
+      (log.created_at || '').toLowerCase().includes(q) ||
+      (log.user && log.user.name ? log.user.name.toLowerCase().includes(q) : false) ||
+      (log.user && log.user.role ? log.user.role.toLowerCase().includes(q) : false) ||
+      (log.aksi || '').toLowerCase().includes(q) ||
       (log.model || '').toLowerCase().includes(q) ||
-      log.data.toLowerCase().includes(q) ||
+      (log.data || '').toLowerCase().includes(q) ||
       (log.value_asal || '').toLowerCase().includes(q) ||
       (log.value_baru || '').toLowerCase().includes(q);
     const matchesAction = filterAction.value === 'all' || log.aksi === filterAction.value;
     
     // Filter berdasarkan tanggal jika ada
     let matchesDate = true;
-    if (startDate.value) {
+    if (startDate.value && log.created_at) {
       const logDate = new Date(log.created_at);
       const filterStartDate = new Date(startDate.value);
       matchesDate = matchesDate && logDate >= filterStartDate;
     }
-    if (endDate.value) {
+    if (endDate.value && log.created_at) {
       const logDate = new Date(log.created_at);
       const filterEndDate = new Date(endDate.value);
       // Tambahkan 1 hari ke endDate untuk mencakup seluruh hari yang dipilih
@@ -154,12 +154,12 @@ const downloadReport = () => {
     
     // Filter berdasarkan tanggal jika ada
     let matchesDate = true;
-    if (downloadStartDate.value) {
+    if (downloadStartDate.value && log.created_at) {
       const logDate = new Date(log.created_at);
       const filterStartDate = new Date(downloadStartDate.value);
       matchesDate = matchesDate && logDate >= filterStartDate;
     }
-    if (downloadEndDate.value) {
+    if (downloadEndDate.value && log.created_at) {
       const logDate = new Date(log.created_at);
       const filterEndDate = new Date(downloadEndDate.value);
       filterEndDate.setDate(filterEndDate.getDate() + 1);
@@ -335,11 +335,11 @@ const downloadReport = () => {
     reportContent += `
       <tr>
         <td>${index + 1}</td>
-        <td>${formatDate(log.created_at)}</td>
-        <td>${log.user.name}</td>
-        <td>${log.user.role}</td>
-        <td>${log.aksi.charAt(0).toUpperCase() + log.aksi.slice(1)}</td>
-        <td>${log.data}</td>
+        <td>${log.created_at ? formatDate(log.created_at) : '-'}</td>
+        <td>${log.user && log.user.name ? log.user.name : '-'}</td>
+        <td>${log.user && log.user.role ? log.user.role : '-'}</td>
+        <td>${log.aksi ? log.aksi.charAt(0).toUpperCase() + log.aksi.slice(1) : '-'}</td>
+        <td>${log.data || '-'}</td>
         <td>${oldHtml}</td>
         <td>${newHtml}</td>
       </tr>
@@ -529,9 +529,9 @@ const getChangedKeys = (log) => {
               class="border-b hover:bg-gray-50 transition duration-200"
             >
               <td class="p-2 text-sm">{{ (currentPage - 1) * perPage + index + 1 }}</td>
-              <td class="p-2 text-sm">{{ formatDate(log.created_at) }}</td>
-              <td class="p-2 text-sm">{{ log.user.name }}</td>
-              <td class="p-2 text-sm">{{ log.user.role }}</td>
+              <td class="p-2 text-sm">{{ log.created_at ? formatDate(log.created_at) : '-' }}</td>
+              <td class="p-2 text-sm">{{ log.user && log.user.name ? log.user.name : '-' }}</td>
+              <td class="p-2 text-sm">{{ log.user && log.user.role ? log.user.role : '-' }}</td>
               <td class="p-2">
                 <span
                   class="px-2 py-1 text-xs font-semibold rounded-full"
@@ -541,10 +541,10 @@ const getChangedKeys = (log) => {
                     'bg-red-100 text-red-800': log.aksi === 'hapus'
                   }"
                 >
-                  {{ log.aksi.charAt(0).toUpperCase() + log.aksi.slice(1) }}
+                  {{ log.aksi ? log.aksi.charAt(0).toUpperCase() + log.aksi.slice(1) : '-' }}
                 </span>
               </td>
-              <td class="p-2 text-sm">{{ log.data }}</td>
+              <td class="p-2 text-sm">{{ log.data || '-' }}</td>
               <td class="p-2 text-sm">
                 <template v-if="log.value_asal">
                   <div v-for="key in getChangedKeys(log)" :key="key">

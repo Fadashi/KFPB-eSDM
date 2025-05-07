@@ -11,10 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ref_subbagian', function (Blueprint $table) {
+        Schema::create('ref_agama', function (Blueprint $table) {
             $table->id();
-            $table->string('kode')->unique();
-            $table->string('subbagian');
+            $table->string('agama');
             $table->timestamps();
         });
     }
@@ -24,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('ref_subbagian');
+        Schema::dropIfExists('ref_agama');
     }
-};
+}; 

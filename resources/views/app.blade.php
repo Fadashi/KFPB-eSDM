@@ -19,8 +19,7 @@
         <!-- Font Awesome -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
-        <!-- Google Maps API -->
-        <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
+        <!-- Google Maps API tidak digunakan dalam aplikasi, jadi dihapus untuk menghindari error -->
     </head>
     <body class="font-sans antialiased">
         @inertia
