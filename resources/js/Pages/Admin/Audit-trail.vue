@@ -1,71 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
-// Data dummy untuk audit trail
-const auditLogs = ref([
-  { 
-    id: 1, 
-    timestamp: '2023-10-01 10:00', 
-    user: {
-      name: 'John Doe',
-      role: 'admin'
-    },
-    action: 'Tambah', 
-    data: 'Karyawan Baru', 
-    old_value: '-',
-    new_value: 'John Doe'
-  },
-  { 
-    id: 2, 
-    timestamp: '2023-10-02 11:30', 
-    user: {
-      name: 'Jane Smith',
-      role: 'supervisor'
-    },
-    action: 'Update', 
-    data: 'Data Jabatan',
-    old_value: 'Staff IT',
-    new_value: 'Senior IT'
-  },
-  { 
-    id: 3, 
-    timestamp: '2023-10-03 09:15', 
-    user: {
-      name: 'Mike Wilson',
-      role: 'manager'
-    },
-    action: 'Hapus', 
-    data: 'Data Karyawan',
-    old_value: 'Jane Smith',
-    new_value: '-'
-  },
-  { 
-    id: 4, 
-    timestamp: '2023-10-04 14:20', 
-    user: {
-      name: 'Sarah Johnson',
-      role: 'admin'
-    },
-    action: 'Update', 
-    data: 'User Profile',
-    old_value: 'email: old@mail.com',
-    new_value: 'email: new@mail.com'
-  },
-  { 
-    id: 5, 
-    timestamp: '2023-10-05 16:45', 
-    user: {
-      name: 'Robert Lee',
-      role: 'admin'
-    },
-    action: 'Reset', 
-    data: 'User Account',
-    old_value: '********',
-    new_value: 'Password baru telah dikirim ke email'
-  },
-]);
+// Ambil data audit trail dari server via Inertia
+const page = usePage();
+const auditLogs = ref(page.props.audits || []);
 
 // Fungsi untuk memformat tanggal
 const formatDate = (dateString) => {
@@ -75,9 +15,9 @@ const formatDate = (dateString) => {
                       'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   const month = monthNames[date.getMonth()];
   const year = date.getFullYear();
-  const time = dateString.split(' ')[1];
-  
-  return `${day} ${month} ${year} ${time}`;
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day} ${month} ${year} ${hours}:${minutes}`;
 };
 
 // Referensi global untuk gambar logo yang akan digunakan dalam PDF
@@ -126,26 +66,28 @@ const perPageOptions = [5, 10, 20, 50];
 // Computed property untuk filtered logs
 const filteredLogs = computed(() => {
   return auditLogs.value.filter(log => {
-    const matchesSearch = 
-      log.id.toString().includes(searchQuery.value.toLowerCase()) ||
-      log.timestamp.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      log.user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      log.user.role.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      log.action.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      log.data.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      log.old_value.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      log.new_value.toLowerCase().includes(searchQuery.value.toLowerCase());
-    const matchesAction = filterAction.value === 'all' || log.action === filterAction.value;
+    const q = searchQuery.value.toLowerCase();
+    const matchesSearch =
+      log.id.toString().includes(q) ||
+      log.created_at.toLowerCase().includes(q) ||
+      log.user.name.toLowerCase().includes(q) ||
+      log.user.role.toLowerCase().includes(q) ||
+      log.aksi.toLowerCase().includes(q) ||
+      (log.model || '').toLowerCase().includes(q) ||
+      log.data.toLowerCase().includes(q) ||
+      (log.value_asal || '').toLowerCase().includes(q) ||
+      (log.value_baru || '').toLowerCase().includes(q);
+    const matchesAction = filterAction.value === 'all' || log.aksi === filterAction.value;
     
     // Filter berdasarkan tanggal jika ada
     let matchesDate = true;
     if (startDate.value) {
-      const logDate = new Date(log.timestamp);
+      const logDate = new Date(log.created_at);
       const filterStartDate = new Date(startDate.value);
       matchesDate = matchesDate && logDate >= filterStartDate;
     }
     if (endDate.value) {
-      const logDate = new Date(log.timestamp);
+      const logDate = new Date(log.created_at);
       const filterEndDate = new Date(endDate.value);
       // Tambahkan 1 hari ke endDate untuk mencakup seluruh hari yang dipilih
       filterEndDate.setDate(filterEndDate.getDate() + 1);
@@ -208,17 +150,17 @@ const closeDownloadModal = () => {
 const downloadReport = () => {
   // Filter logs berdasarkan kriteria download
   const logsToDownload = auditLogs.value.filter(log => {
-    const matchesAction = downloadFilterAction.value === 'all' || log.action === downloadFilterAction.value;
+    const matchesAction = downloadFilterAction.value === 'all' || log.aksi === downloadFilterAction.value;
     
     // Filter berdasarkan tanggal jika ada
     let matchesDate = true;
     if (downloadStartDate.value) {
-      const logDate = new Date(log.timestamp);
+      const logDate = new Date(log.created_at);
       const filterStartDate = new Date(downloadStartDate.value);
       matchesDate = matchesDate && logDate >= filterStartDate;
     }
     if (downloadEndDate.value) {
-      const logDate = new Date(log.timestamp);
+      const logDate = new Date(log.created_at);
       const filterEndDate = new Date(downloadEndDate.value);
       filterEndDate.setDate(filterEndDate.getDate() + 1);
       matchesDate = matchesDate && logDate < filterEndDate;
@@ -382,16 +324,24 @@ const downloadReport = () => {
   
   // Tambahkan data ke laporan
   logsToDownload.forEach((log, index) => {
+    // Bangun HTML untuk kolom Value Asal dan Value Baru
+    const changedKeys = getChangedKeys(log);
+    const oldHtml = changedKeys.length
+      ? changedKeys.map(k => `${labelKey(k)}: ${getOldValue(log, k)}`).join('<br/>')
+      : '-';
+    const newHtml = changedKeys.length
+      ? changedKeys.map(k => `${labelKey(k)}: ${getNewValue(log, k)}`).join('<br/>')
+      : '-';
     reportContent += `
       <tr>
         <td>${index + 1}</td>
-        <td>${formatDate(log.timestamp)}</td>
+        <td>${formatDate(log.created_at)}</td>
         <td>${log.user.name}</td>
         <td>${log.user.role}</td>
-        <td>${log.action}</td>
+        <td>${log.aksi.charAt(0).toUpperCase() + log.aksi.slice(1)}</td>
         <td>${log.data}</td>
-        <td>${log.old_value}</td>
-        <td>${log.new_value}</td>
+        <td>${oldHtml}</td>
+        <td>${newHtml}</td>
       </tr>
     `;
   });
@@ -426,6 +376,53 @@ const downloadReport = () => {
   
   // Tutup modal
   closeDownloadModal();
+};
+
+// Helper untuk cek apakah string merupakan ISO date
+const isIsoDate = (str) => {
+  if (typeof str !== 'string') return false;
+  const d = new Date(str);
+  return !isNaN(d.getTime()) && /\d{4}-\d{2}-\d{2}/.test(str);
+};
+
+// Fungsi untuk memformat tanggal saja tanpa waktu
+const formatDateOnly = (dateString) => {
+  const date = new Date(dateString);
+  const day = date.getDate();
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+                      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
+};
+
+// Fungsi untuk mendapatkan nilai lama berdasarkan key
+const getOldValue = (log, key) => {
+  const obj = log.value_asal ? JSON.parse(log.value_asal) : {};
+  let val = obj[key] != null ? obj[key] : '-';
+  if (isIsoDate(val)) val = formatDateOnly(val);
+  return val;
+};
+
+// Fungsi untuk mendapatkan nilai baru berdasarkan key
+const getNewValue = (log, key) => {
+  const obj = log.value_baru ? JSON.parse(log.value_baru) : {};
+  let val = obj[key] != null ? obj[key] : '-';
+  if (isIsoDate(val)) val = formatDateOnly(val);
+  return val;
+};
+
+// Fungsi untuk merubah key seperti "nama_libur" menjadi "Nama Libur"
+const labelKey = (key) => key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+// Fungsi untuk mendapatkan semua key yang diubah (kecuali id, created_at, updated_at)
+const getChangedKeys = (log) => {
+  const newObj = log.value_baru ? JSON.parse(log.value_baru) : {};
+  const oldObj = log.value_asal ? JSON.parse(log.value_asal) : {};
+  const filter = (obj) => Object.keys(obj).filter(k => !['id','created_at','updated_at'].includes(k));
+  const newKeys = filter(newObj);
+  const oldKeys = filter(oldObj);
+  return Array.from(new Set([...oldKeys, ...newKeys]));
 };
 </script>
 
@@ -489,10 +486,9 @@ const downloadReport = () => {
           class="w-full md:w-48 px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">Semua Aksi</option>
-          <option value="Tambah">Tambah</option>
-          <option value="Update">Update</option>
-          <option value="Hapus">Hapus</option>
-          <option value="Reset">Reset</option>
+          <option value="tambah">Tambah</option>
+          <option value="ubah">Ubah</option>
+          <option value="hapus">Hapus</option>
         </select>
         
         <div class="flex flex-col md:flex-row gap-2 items-center">
@@ -533,25 +529,40 @@ const downloadReport = () => {
               class="border-b hover:bg-gray-50 transition duration-200"
             >
               <td class="p-2 text-sm">{{ (currentPage - 1) * perPage + index + 1 }}</td>
-              <td class="p-2 text-sm">{{ formatDate(log.timestamp) }}</td>
+              <td class="p-2 text-sm">{{ formatDate(log.created_at) }}</td>
               <td class="p-2 text-sm">{{ log.user.name }}</td>
               <td class="p-2 text-sm">{{ log.user.role }}</td>
               <td class="p-2">
                 <span
                   class="px-2 py-1 text-xs font-semibold rounded-full"
                   :class="{
-                    'bg-green-100 text-green-800': log.action === 'Tambah',
-                    'bg-blue-100 text-blue-800': log.action === 'Update',
-                    'bg-red-100 text-red-800': log.action === 'Hapus',
-                    'bg-purple-100 text-purple-800': log.action === 'Reset'
+                    'bg-green-100 text-green-800': log.aksi === 'tambah',
+                    'bg-blue-100 text-blue-800': log.aksi === 'ubah',
+                    'bg-red-100 text-red-800': log.aksi === 'hapus'
                   }"
                 >
-                  {{ log.action }}
+                  {{ log.aksi.charAt(0).toUpperCase() + log.aksi.slice(1) }}
                 </span>
               </td>
               <td class="p-2 text-sm">{{ log.data }}</td>
-              <td class="p-2 text-sm">{{ log.old_value }}</td>
-              <td class="p-2 text-sm">{{ log.new_value }}</td>
+              <td class="p-2 text-sm">
+                <template v-if="log.value_asal">
+                  <div v-for="key in getChangedKeys(log)" :key="key">
+                    <strong>{{ labelKey(key) }}:</strong> {{ getOldValue(log, key) }}
+                  </div>
+                </template>
+                <template v-else>-
+                </template>
+              </td>
+              <td class="p-2 text-sm">
+                <template v-if="log.value_baru">
+                  <div v-for="key in getChangedKeys(log)" :key="key">
+                    <strong>{{ labelKey(key) }}:</strong> {{ getNewValue(log, key) }}
+                  </div>
+                </template>
+                <template v-else>-
+                </template>
+              </td>
             </tr>
             <tr v-if="paginatedLogs.length === 0">
               <td colspan="8" class="p-2 text-center text-sm text-gray-500">
@@ -660,10 +671,9 @@ const downloadReport = () => {
               class="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Semua Aksi</option>
-              <option value="Tambah">Tambah</option>
-              <option value="Update">Update</option>
-              <option value="Hapus">Hapus</option>
-              <option value="Reset">Reset</option>
+              <option value="tambah">Tambah</option>
+              <option value="ubah">Ubah</option>
+              <option value="hapus">Hapus</option>
             </select>
           </div>
           

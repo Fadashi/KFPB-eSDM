@@ -16,6 +16,7 @@ use App\Http\Controllers\RefEselonController;
 use App\Http\Controllers\RefBerkasController;
 use App\Http\Controllers\RefPayrollController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\AuditTrailController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -121,10 +122,10 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('Admin/Users');
     })->middleware('checkRole:admin')->name('admin.users');
 
-    //Audit Trail
-    Route::get('/admin/audit-trail', function () {
-        return Inertia::render('Admin/Audit-trail');
-        })->middleware('checkRole:admin')->name('admin.audit-trail');
+    // Audit Trail
+    Route::get('/admin/audit-trail', [AuditTrailController::class, 'index'])
+        ->middleware('checkRole:admin')
+        ->name('admin.audit-trail');
 
     //Pengaturan
     Route::get('/admin/settings', function () {
