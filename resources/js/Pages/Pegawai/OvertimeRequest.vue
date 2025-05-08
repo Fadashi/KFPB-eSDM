@@ -2,6 +2,10 @@
   <Head title="Pengajuan Lembur Pegawai" />
   <AuthenticatedLayout>
     <template #header>
+      <Breadcrumb :items="[
+        { label: 'Dashboard', href: '/pegawai/dashboard', icon: 'fas fa-home' },
+        { label: 'Pengajuan Lembur' }
+      ]" />
       <h1 class="text-xl font-semibold text-gray-900">Pengajuan Lembur</h1>
     </template>
     <div class="py-12">
@@ -105,6 +109,7 @@ import { ref, onMounted } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import axios from 'axios'
+import Breadcrumb from '@/Components/Breadcrumb.vue'
 
 const form = ref({
   tanggal: '',

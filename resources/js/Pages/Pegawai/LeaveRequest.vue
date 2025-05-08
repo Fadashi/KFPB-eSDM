@@ -2,6 +2,10 @@
   <Head title="Pengajuan Cuti Pegawai" />
   <AuthenticatedLayout>
     <template #header>
+      <Breadcrumb :items="[
+        { label: 'Dashboard', href: '/pegawai/dashboard', icon: 'fas fa-home' },
+        { label: 'Pengajuan Cuti' }
+      ]" />
       <h1 class="text-xl font-semibold text-gray-900">Pengajuan Cuti</h1>
     </template>
     <div class="py-12">
@@ -136,6 +140,7 @@ import { ref, computed, onMounted } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import axios from 'axios'
+import Breadcrumb from '@/Components/Breadcrumb.vue'
 
 const props = defineProps(['auth'])
 // NIP otomatis dari name user (bukan nip)
