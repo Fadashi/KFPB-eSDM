@@ -8,12 +8,12 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::create('leave_requests', function (Blueprint $table) {
+        Schema::create('overtime_requests', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('jenis'); // tahunan, sakit, hamil, besar, penting
-            $table->date('mulai');
-            $table->date('selesai');
+            $table->date('tanggal');
+            $table->time('mulai');
+            $table->time('selesai');
             $table->text('alasan');
             $table->string('lampiran')->nullable();
             $table->string('status')->default('Menunggu'); // Menunggu, Disetujui, Ditolak
@@ -26,6 +26,6 @@ return new class extends Migration
 
     public function down()
     {
-        Schema::dropIfExists('leave_requests');
+        Schema::dropIfExists('overtime_requests');
     }
 }; 

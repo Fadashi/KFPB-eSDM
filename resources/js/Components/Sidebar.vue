@@ -30,7 +30,7 @@ const menuItems = computed(() => {
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
         { icon: 'fas fa-user', text: 'Profil', route: 'pegawai.profile' },
         { icon: 'fas fa-user-clock', text: 'Absensi', route: 'pegawai.attendance' },
-        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Cuti', route: '#' },
+        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Cuti', route: 'pegawai.cuti' },
         { icon: 'fas fa-calendar-alt', text: 'Pengajuan Lembur', route: '#' },
         { icon: 'fas fa-history', text: 'Riwayat', route: '#' },
       ]

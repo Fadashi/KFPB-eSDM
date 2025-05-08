@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import axios from 'axios'
 
 // Koordinat PT Kimia Farma Tbk Plant Banjaran
@@ -37,6 +37,11 @@ const map = ref(null)
 const marker = ref(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('')
+
+// Tambahkan state untuk debug response
+const responseCheckIn = ref(null)
+const responseAttendanceData = ref(null)
 
 const workFromOptions = [
   { value: 'office', label: 'Office' },
@@ -92,13 +97,13 @@ let timer
 const fetchAttendanceData = async () => {
   try {
     const response = await axios.get('/pegawai/api/attendance');
+    responseAttendanceData.value = response.data;
     const { today, monthly, statistics: stats } = response.data;
-
     console.log('Fetched attendance data:', response.data);
 
     if (today) {
       attendance.value = {
-        status: today.check_out ? 'Sudah Absen' : 'Sudah Check In',
+        status: today.check_out ? 'Sudah Absen' : (today.status || 'Sudah Check In'),
         check_in: today.check_in,
         check_out: today.check_out,
         location: today.latitude && today.longitude ? {
@@ -107,6 +112,7 @@ const fetchAttendanceData = async () => {
         } : null,
         shift: today.shift || 'non_shift'
       };
+      console.log('Updated attendance state:', attendance.value);
     } else {
       attendance.value = {
         status: 'Belum Absen',
@@ -141,12 +147,11 @@ const fetchAttendanceData = async () => {
       }
     };
 
-    console.log('Updated attendance state:', attendance.value);
     console.log('Updated monthly attendance:', monthlyAttendance.value);
     console.log('Updated statistics:', statistics.value);
   } catch (error) {
     console.error('Error fetching attendance data:', error);
-    alert('Terjadi kesalahan saat mengambil data absensi. Silakan refresh halaman.');
+    errorMessage.value = 'Terjadi kesalahan saat mengambil data absensi. Silakan refresh halaman.';
   }
 };
 
@@ -392,19 +397,13 @@ const handleCheckIn = async () => {
       longitude: attendance.value.location.longitude,
       shift: attendance.value.shift
     });
+    responseCheckIn.value = response.data;
+    console.log('Response check-in:', response.data);
 
     if (response.data.success) {
-      // Update data absensi hari ini
-      attendance.value = {
-        ...attendance.value,
-        status: response.data.data.status,
-        check_in: response.data.data.check_in
-      };
-
-      // Refresh data statistik dan riwayat
       await fetchAttendanceData();
-    
-      alert('Absensi masuk berhasil');
+      successMessage.value = 'Absensi masuk berhasil!';
+      setTimeout(() => successMessage.value = '', 3000);
     } else {
       errorMessage.value = response.data.message || 'Gagal melakukan absensi masuk';
     }
@@ -494,6 +493,23 @@ const formatTime = (time) => {
   const [hours, minutes] = time.split(':');
   return `${hours}:${minutes}`;
 };
+
+// Tambahkan state dan computed untuk NPP, workFrom, dan validasi form
+// Misal NPP diambil dari user login, contoh:
+const npp = '20000427R' // Ganti dengan logic dari user login jika ada
+const workFrom = ref('')
+const formValid = computed(() => {
+  return npp && workFrom.value && attendance.value.shift && attendance.value.location && isWithinPTArea(attendance.value.location.latitude, attendance.value.location.longitude)
+})
+
+// Tambahkan computed onlyDate untuk format tanggal tanpa hari
+const onlyDate = computed(() => {
+  // currentDate misal: "Kamis, 8 Mei 2025"
+  // Ambil bagian tanggal saja: "8 Mei 2025"
+  if (!currentDate.value) return '';
+  const parts = currentDate.value.split(', ');
+  return parts.length > 1 ? parts[1] : currentDate.value;
+})
 </script>
 
 <template>
@@ -501,14 +517,13 @@ const formatTime = (time) => {
 
   <AuthenticatedLayout>
     <template #header>
-      <!-- Breadcrumbs -->
       <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
         <ol class="list-none p-0 inline-flex">
           <li class="flex items-center">
             <i class="fas fa-home text-blue-600 mr-1"></i>
             <a href="/pegawai/dashboard" class="text-blue-600 hover:text-blue-800 font-semibold">Dashboard</a>
             <svg class="w-4 h-4 mx-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
             </svg>
           </li>
           <li class="flex items-center text-gray-700 font-semibold">
@@ -518,201 +533,176 @@ const formatTime = (time) => {
       </nav>
       <div class="flex items-center justify-between">
         <h1 class="text-xl font-semibold text-gray-900">Absensi</h1>
-        <div class="text-right">
-        </div>
       </div>
     </template>
 
     <div class="py-12">
       <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <!-- Error Message -->
+        <!-- Jam dan Tanggal Besar di Atas Form -->
+        <div class="text-center mb-2">
+          <div class="text-5xl font-extrabold" style="font-family: 'Montserrat', 'Poppins', 'Inter', 'Segoe UI', Arial, sans-serif; letter-spacing: 0.1em; text-shadow: 0 2px 8px rgba(0,0,0,0.10); color: #222;">
+            {{ currentTime }}
+          </div>
+          <div class="text-xl font-bold mt-1" style="font-family: 'Montserrat', 'Poppins', 'Inter', 'Segoe UI', Arial, sans-serif; color: #444;">
+            {{ onlyDate }}
+          </div>
+        </div>
+        <!-- Tambahkan keterangan di atas jam real-time -->
+        <div class="text-center mb-1">
+          <span class="inline-flex items-center text-sm font-semibold" style="color: #eab308">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#eab308" stroke-width="2" fill="none"/><path stroke="#eab308" stroke-width="2" d="M12 8v4m0 4h.01"/></svg>
+            Check in di atas jam 07.00 dianggap Terlambat
+          </span>
+        </div>
         <div v-if="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
           {{ errorMessage }}
         </div>
-
-        <!-- Status Absensi Hari Ini -->
-        <div class="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 class="text-lg font-semibold mb-4">Status Absensi Hari Ini</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Shift</label>
-                <select v-model="attendance.shift" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                  <option v-for="shift in shiftOptions" :key="shift.value" :value="shift.value">
-                    {{ shift.label }}
-                  </option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Status</label>
-                <div class="mt-1">
-                  <span class="px-2 py-1 rounded text-sm" :class="{
-                    'bg-green-100 text-green-800': attendance.status === 'Hadir',
-                    'bg-yellow-100 text-yellow-800': attendance.status === 'Terlambat',
-                    'bg-red-100 text-red-800': attendance.status === 'Cuti',
-                    'bg-blue-100 text-blue-800': attendance.status === 'Sudah Absen'
-                  }">
-                    {{ attendance.status || 'Belum Absen' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Check In</label>
-                <div class="mt-1">
-                  <span class="text-sm text-gray-600">{{ attendance.check_in ? formatTime(attendance.check_in) : '-' }}</span>
-                </div>
-              </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Check Out</label>
-                <div class="mt-1">
-                  <span class="text-sm text-gray-600">{{ attendance.check_out ? formatTime(attendance.check_out) : '-' }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Lokasi -->
-          <div class="mt-4">
-            <label class="block text-sm font-medium text-gray-700">Lokasi Saat Ini</label>
-            <div class="mt-1 p-3 bg-gray-50 rounded-lg">
-              <div v-if="attendance.location" class="space-y-2">
-                <div class="text-sm text-gray-600">
-                  <span class="font-medium">Latitude:</span> {{ attendance.location.latitude?.toFixed(6) }}
-                </div>
-                <div class="text-sm text-gray-600">
-                  <span class="font-medium">Longitude:</span> {{ attendance.location.longitude?.toFixed(6) }}
-                </div>
-                <div ref="mapRef" class="w-full h-64 rounded-lg border-2 border-gray-300"></div>
-              </div>
-              <div v-else class="text-yellow-600 text-sm">
-                Mendeteksi lokasi...
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-4 flex space-x-4">
-            <button 
-              @click="handleCheckIn" 
-              :disabled="attendance.status === 'Sudah Absen' || isLoading"
-              class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center"
-            >
-              <span v-if="isLoading" class="mr-2">
-                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </span>
-              Check In
-            </button>
-            <button 
-              @click="checkOut" 
-              :disabled="!attendance.check_in || attendance.check_out || isLoading"
-              class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center"
-            >
-              <span v-if="isLoading" class="mr-2">
-                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </span>
-              Check Out
-            </button>
-          </div>
+        <div v-if="successMessage" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded text-center font-bold">
+          {{ successMessage }}
         </div>
 
-        <!-- Statistik Absensi -->
+        <!-- Form Absen Masuk -->
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+          <h2 class="text-lg font-semibold mb-4">Absen Masuk</h2>
+          <form @submit.prevent="handleCheckIn">
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700">NPP</label>
+              <input type="text" :value="npp" readonly class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 shadow-sm" />
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700">Work From</label>
+              <select v-model="workFrom" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <option value="">-- Pilih Work From --</option>
+                <option value="office">Work From Office (WFO)</option>
+                <option value="flexi_time">Flexi Time</option>
+                <option value="pkl">PKL</option>
+              </select>
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700">Shift</label>
+              <select v-model="attendance.shift" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <option value="">-- Pilih Shift--</option>
+                <optgroup label="Banjaran">
+                  <option value="non_shift">Non Shift BNJ (07:0-15:30)</option>
+                  <option value="night_shift">Panjang (Malam) BNJ (19:3-04:00)</option>
+                  <option value="short_night">Pendek (Malam) BNJ (20:3-05:00)</option>
+                  <option value="ipal_pagi">IPAL Pagi BNJ (05:3-14:00)</option>
+                  <option value="ipal_siang">IPAL Siang BNJ (13:3-22:00)</option>
+                  <option value="pkl">PKL/Magang (00:0-00:0)</option>
+                  <option value="overtime">Lembur (libur) BNJ (00:0-00:00)</option>
+                  <option value="flexi_time">Flexi Time (00:0-00:00)</option>
+                  <option value="night2">Panjang2 (Malam) BNJ (19:0-03:30)</option>
+                  <option value="afternoon_shift">Shift Siang BNJ (14:0-22:10)</option>
+                  <option value="shift_malam">Shift Malam BNJ (22:0-06:1)</option>
+                  <option value="morning_shift">Shift Pagi BNJ (06:0-14:1)</option>
+                </optgroup>
+              </select>
+              <div v-if="attendance.shift === 'overtime'" class="text-green-700 font-semibold text-sm mt-1">
+                Jika lembur sabtu/minggu/libur, Pilih shift lembur (libur)!
+              </div>
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700">Lokasi</label>
+              <div class="mt-1 p-3 bg-gray-50 rounded-lg">
+                <div v-if="attendance.location" class="space-y-2">
+                  <div class="text-sm text-gray-600">
+                    <span class="font-medium">Latitude:</span> {{ attendance.location.latitude?.toFixed(6) }}
+                  </div>
+                  <div class="text-sm text-gray-600">
+                    <span class="font-medium">Longitude:</span> {{ attendance.location.longitude?.toFixed(6) }}
+                  </div>
+                  <div ref="mapRef" class="w-full h-64 rounded-lg border-2 border-gray-300"></div>
+                </div>
+                <div v-else class="text-yellow-600 text-sm">
+                  Mendeteksi lokasi...
+                </div>
+              </div>
+            </div>
+            <div class="mb-4">
+              <span class="inline-block px-3 py-1 rounded-full text-sm font-bold"
+                :class="{
+                  'bg-gray-200 text-gray-700': attendance.status === 'Belum Absen' || !attendance.status,
+                  'bg-green-100 text-green-800': attendance.status === 'Hadir',
+                  'bg-yellow-100 text-yellow-800': attendance.status === 'Terlambat',
+                  'bg-red-100 text-red-800': attendance.status === 'Cuti',
+                  'bg-blue-100 text-blue-800': attendance.status === 'Sudah Absen'
+                }"
+              >
+                {{ attendance.status || 'Belum Absen' }}
+              </span>
+            </div>
+            <div class="mt-6 flex gap-4">
+              <button
+                type="button"
+                @click="handleCheckIn"
+                :disabled="attendance.check_in || !formValid || isLoading"
+                class="w-1/2 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded disabled:opacity-60 text-lg"
+              >
+                Check In
+              </button>
+              <button
+                type="button"
+                @click="checkOut"
+                :disabled="!attendance.check_in || attendance.check_out || !formValid || isLoading"
+                class="w-1/2 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded disabled:opacity-60 text-lg"
+              >
+                Check Out
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Statistik Absensi Bulan Ini dengan diagram bulat -->
         <div class="bg-white p-6 rounded-lg shadow mb-6">
           <h2 class="text-lg font-semibold mb-4">Statistik Absensi Bulan Ini</h2>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="text-center">
-              <div class="relative w-24 h-24 mx-auto">
-                <svg class="w-full h-full" viewBox="0 0 36 36">
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#e2e8f0"
-                    stroke-width="3"
-                  />
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#10b981"
-                    stroke-width="3"
-                    :stroke-dasharray="`${statistics.percentages.present}, 100`"
-                  />
-                </svg>
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <span class="text-lg font-bold text-green-600">{{ statistics.percentages.present }}%</span>
-                </div>
+          <div class="flex justify-center items-center">
+            <svg width="160" height="160" viewBox="0 0 42 42" class="mr-8">
+              <!-- Background -->
+              <circle r="15.9155" cx="21" cy="21" fill="#f3f4f6" />
+              <!-- Hadir -->
+              <circle
+                r="15.9155" cx="21" cy="21"
+                fill="transparent"
+                stroke="#10b981"
+                stroke-width="4"
+                stroke-dasharray="{{ statistics.percentages.present }}, 100"
+                stroke-dashoffset="25"
+              />
+              <!-- Terlambat -->
+              <circle
+                r="15.9155" cx="21" cy="21"
+                fill="transparent"
+                stroke="#eab308"
+                stroke-width="4"
+                stroke-dasharray="{{ statistics.percentages.late }}, 100"
+                stroke-dashoffset="{{ 25 + statistics.percentages.present }}"
+              />
+              <!-- Cuti -->
+              <circle
+                r="15.9155" cx="21" cy="21"
+                fill="transparent"
+                stroke="#ef4444"
+                stroke-width="4"
+                stroke-dasharray="{{ statistics.percentages.leave }}, 100"
+                stroke-dashoffset="{{ 25 + statistics.percentages.present + statistics.percentages.late }}"
+              />
+              <text x="21" y="23" text-anchor="middle" font-size="8" font-weight="bold" fill="#222">{{ statistics.percentages.present }}%</text>
+            </svg>
+            <div>
+              <div class="flex items-center mb-2">
+                <span class="inline-block w-4 h-4 rounded-full mr-2" style="background:#10b981"></span> Hadir: <span class="ml-2 font-bold">{{ statistics.present_days }}</span>
               </div>
-              <div class="mt-2 text-sm text-gray-600">Hadir</div>
-            </div>
-
-            <div class="text-center">
-              <div class="relative w-24 h-24 mx-auto">
-                <svg class="w-full h-full" viewBox="0 0 36 36">
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#e2e8f0"
-                    stroke-width="3"
-                  />
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#eab308"
-                    stroke-width="3"
-                    :stroke-dasharray="`${statistics.percentages.late}, 100`"
-                  />
-                </svg>
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <span class="text-lg font-bold text-yellow-600">{{ statistics.percentages.late }}%</span>
-                </div>
+              <div class="flex items-center mb-2">
+                <span class="inline-block w-4 h-4 rounded-full mr-2" style="background:#eab308"></span> Terlambat: <span class="ml-2 font-bold">{{ statistics.late_days }}</span>
               </div>
-              <div class="mt-2 text-sm text-gray-600">Terlambat</div>
-            </div>
-
-            <div class="text-center">
-              <div class="relative w-24 h-24 mx-auto">
-                <svg class="w-full h-full" viewBox="0 0 36 36">
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#e2e8f0"
-                    stroke-width="3"
-                  />
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#ef4444"
-                    stroke-width="3"
-                    :stroke-dasharray="`${statistics.percentages.leave}, 100`"
-                  />
-                </svg>
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <span class="text-lg font-bold text-red-600">{{ statistics.percentages.leave }}%</span>
-                </div>
+              <div class="flex items-center">
+                <span class="inline-block w-4 h-4 rounded-full mr-2" style="background:#ef4444"></span> Cuti: <span class="ml-2 font-bold">{{ statistics.leave_days }}</span>
               </div>
-              <div class="mt-2 text-sm text-gray-600">Cuti</div>
             </div>
           </div>
         </div>
 
-        <!-- Riwayat Absensi Bulanan -->
+        <!-- Riwayat Absensi Bulanan dalam bentuk tabel -->
         <div class="bg-white p-6 rounded-lg shadow">
           <h2 class="text-lg font-semibold mb-4">Riwayat Absensi Bulanan</h2>
           <div class="overflow-x-auto">

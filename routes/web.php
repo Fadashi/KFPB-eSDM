@@ -18,6 +18,8 @@ use App\Http\Controllers\RefPayrollController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\AuditTrailController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\OvertimeRequestController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -188,6 +190,16 @@ Route::middleware(['auth', 'checkRole:pegawai'])->prefix('pegawai')->group(funct
         Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn']);
         Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut']);
     });
+
+    Route::get('/pegawai/cuti', function() {
+        return Inertia::render('Pegawai/LeaveRequest');
+    })->name('pegawai.cuti');
+
+    Route::get('/api/overtime-history', [\App\Http\Controllers\OvertimeRequestController::class, 'index']);
+    Route::post('/api/overtime-request', [\App\Http\Controllers\OvertimeRequestController::class, 'store']);
+    Route::get('/api/overtime-request/{overtimeRequest}', [\App\Http\Controllers\OvertimeRequestController::class, 'show']);
+    Route::put('/api/overtime-request/{overtimeRequest}', [\App\Http\Controllers\OvertimeRequestController::class, 'update']);
+    Route::delete('/api/overtime-request/{overtimeRequest}', [\App\Http\Controllers\OvertimeRequestController::class, 'destroy']);
 });
 
 // Tambahkan route autentikasi dari Laravel Breeze / Jetstream
@@ -200,6 +212,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/attendance/statistics', [AttendanceController::class, 'statistics']);
         Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn']);
         Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut']);
+        
+        // API Routes for Leave Request
+        Route::get('/leave-history', [LeaveRequestController::class, 'index']);
+        Route::apiResource('leave-request', LeaveRequestController::class);
     });
 });
 
