@@ -117,6 +117,27 @@ class Employee extends Model
     }
 
     /**
+     * Mendapatkan nama sub departemen karyawan (accessor)
+     */
+    public function getSubDepartmentNameAttribute()
+    {
+        // Coba mendapatkan data dari relasi
+        if ($this->subDepartment) {
+            return $this->subDepartment->subbagian;
+        }
+        
+        // Jika relasi tidak terbaca, ambil dari database langsung
+        if ($this->sub_department_id) {
+            $subDept = RefSubBagian::find($this->sub_department_id);
+            if ($subDept) {
+                return $subDept->subbagian;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
      * Mendapatkan bank karyawan
      */
     public function bank(): BelongsTo
