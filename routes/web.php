@@ -164,6 +164,28 @@ Route::middleware(['auth', 'checkRole:atasan'])->prefix('atasan')->group(functio
     Route::get('/approvals', function () {
         return Inertia::render('Atasan/Approvals');
     })->name('atasan.approvals');
+
+    // Route untuk approval cuti
+    Route::get('/leave-approvals', function () {
+        return Inertia::render('Atasan/LeaveApprovals');
+    })->name('atasan.leave-approvals');
+
+    // Route untuk approval lembur
+    Route::get('/overtime-approvals', function () {
+        return Inertia::render('Atasan/OvertimeApprovals');
+    })->name('atasan.overtime-approvals');
+
+    // API Routes untuk approval cuti
+    Route::prefix('api')->group(function () {
+        Route::get('/leave-requests', [LeaveRequestController::class, 'getPendingRequests']);
+        Route::put('/leave-requests/{id}/approve', [LeaveRequestController::class, 'approve']);
+        Route::put('/leave-requests/{id}/reject', [LeaveRequestController::class, 'reject']);
+
+        // API Routes untuk approval lembur
+        Route::get('/overtime-requests', [OvertimeRequestController::class, 'getPendingRequests']);
+        Route::put('/overtime-requests/{id}/approve', [OvertimeRequestController::class, 'approve']);
+        Route::put('/overtime-requests/{id}/reject', [OvertimeRequestController::class, 'reject']);
+    });
 });
 
 // Routes untuk Pegawai
@@ -184,6 +206,11 @@ Route::middleware(['auth', 'checkRole:pegawai'])->prefix('pegawai')->group(funct
         return Inertia::render('Pegawai/LeaveRequests');
     })->name('pegawai.leave-requests');
 
+    // Tambahkan route untuk pengajuan lembur
+    Route::get('/lembur', function () {
+        return Inertia::render('Pegawai/OvertimeRequest');
+    })->name('pegawai.lembur');
+
     // API Routes for Attendance
     Route::prefix('api')->group(function () {
         Route::get('/attendance', [AttendanceController::class, 'index']);
@@ -200,6 +227,10 @@ Route::middleware(['auth', 'checkRole:pegawai'])->prefix('pegawai')->group(funct
     Route::get('/api/overtime-request/{overtimeRequest}', [\App\Http\Controllers\OvertimeRequestController::class, 'show']);
     Route::put('/api/overtime-request/{overtimeRequest}', [\App\Http\Controllers\OvertimeRequestController::class, 'update']);
     Route::delete('/api/overtime-request/{overtimeRequest}', [\App\Http\Controllers\OvertimeRequestController::class, 'destroy']);
+
+    Route::get('/riwayat', function () {
+        return Inertia::render('Pegawai/Riwayat');
+    })->name('pegawai.riwayat');
 });
 
 // Tambahkan route autentikasi dari Laravel Breeze / Jetstream

@@ -20,6 +20,7 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
         <!-- Google Maps API tidak digunakan dalam aplikasi, jadi dihapus untuk menghindari error -->
+        <link rel="icon" type="image/png" href="/KF_Logo.png">
     </head>
     <body class="font-sans antialiased">
         @inertia
