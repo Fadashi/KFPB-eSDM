@@ -176,10 +176,19 @@ class EmployeeController extends Controller
     public function getEmployees()
     {
         try {
-            $employees = Employee::select('id', 'name', 'nip')
+            $employees = Employee::with(['department', 'subDepartment'])
                 ->where('status', 'Aktif')
                 ->orderBy('name')
-                ->get();
+                ->get()
+                ->map(function($employee) {
+                    return [
+                        'id' => $employee->id,
+                        'name' => $employee->name,
+                        'nip' => $employee->nip,
+                        'department_name' => $employee->department ? $employee->department->bagian : null,
+                        'sub_department_name' => $employee->subDepartment ? $employee->subDepartment->subbagian : null
+                    ];
+                });
             
             return response()->json(['employees' => $employees]);
         } catch (\Exception $e) {

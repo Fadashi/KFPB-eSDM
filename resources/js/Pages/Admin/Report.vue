@@ -41,7 +41,14 @@ const fetchEmployees = async () => {
   try {
     isLoading.value = true;
     const response = await axios.get('/api/employees');
-    employees.value = response.data.employees;
+    
+    // Pastikan data lengkap dengan department dan subDepartment
+    employees.value = response.data.employees.map(emp => {
+      // Pastikan properti department dan subDepartment ada
+      emp.department = emp.department_name || '-';
+      emp.subDepartment = emp.sub_department_name || '-';
+      return emp;
+    });
   } catch (error) {
     console.error('Error mengambil data karyawan:', error);
   } finally {
@@ -100,10 +107,12 @@ const selectEmployee = (employee) => {
 
 // Fungsi untuk memformat tanggal (yyyy-MM-dd ke dd Mmm yyyy)
 const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  
   const date = new Date(dateString);
   const day = date.getDate();
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 
-                      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   const month = monthNames[date.getMonth()];
   const year = date.getFullYear();
   return `${day} ${month} ${year}`;
@@ -242,7 +251,13 @@ const downloadAbsensiReport = async () => {
         <!-- Info Laporan -->
         <div class="info">
           <p>
-            <strong>Nama:</strong> ${employee ? employee.name + ' - ' + employee.nip : 'Semua Karyawan'}
+            <strong>Nama:</strong> ${employee ? employee.name : 'Semua Karyawan'}
+          </p>
+          <p>
+            <strong>NIP:</strong> ${employee ? employee.nip : '-'}
+          </p>
+          <p>
+            <strong>Bagian:</strong> ${employee && employee.department_name ? employee.department_name : '-'} ${employee && employee.sub_department_name ? '(' + employee.sub_department_name + ')' : ''}
           </p>
           <p>
             <strong>Periode:</strong> ${formatDate(startDate.value)} s/d ${formatDate(endDate.value)}
