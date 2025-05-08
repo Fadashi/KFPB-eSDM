@@ -34,7 +34,6 @@ class DatabaseSeeder extends Seeder
             RefJabatanSeeder::class,
             RefBagianSeeder::class,
             RefSubBagianSeeder::class,
-            AtasanSeeder::class,
         ]);
     }
 }
