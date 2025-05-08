@@ -22,7 +22,8 @@ const menuItems = computed(() => {
       return [
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
         { icon: 'fas fa-users', text: 'Tim Saya', route: '#' },
-        { icon: 'fas fa-check-circle', text: 'Persetujuan', route: '#' },
+        { icon: 'fas fa-check-circle', text: 'Persetujuan Cuti', route: 'atasan.leave-approvals' },
+        { icon: 'fas fa-clock', text: 'Persetujuan Lembur', route: 'atasan.overtime-approvals' },
         { icon: 'fas fa-file-alt', text: 'Laporan', route: '#' },
       ]
     case 'pegawai':
@@ -31,8 +32,8 @@ const menuItems = computed(() => {
         { icon: 'fas fa-user', text: 'Profil', route: 'pegawai.profile' },
         { icon: 'fas fa-user-clock', text: 'Absensi', route: 'pegawai.attendance' },
         { icon: 'fas fa-calendar-alt', text: 'Pengajuan Cuti', route: 'pegawai.cuti' },
-        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Lembur', route: '#' },
-        { icon: 'fas fa-history', text: 'Riwayat', route: '#' },
+        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Lembur', route: 'pegawai.lembur' },
+        { icon: 'fas fa-history', text: 'Riwayat', route: 'pegawai.riwayat' },
       ]
     default:
       return []
@@ -55,9 +56,9 @@ const panelTitle = computed(() => {
 const logoImage = computed(() => {
   switch (user.role) {
     case 'admin':
-      return '/images/user-gear.png'
+      return '/images/user.png'
     case 'atasan':
-      return '/images/user-tie.png'
+      return '/images/user.png'
     case 'pegawai':
       return '/images/user.png'
     default:

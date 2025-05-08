@@ -139,4 +139,28 @@ class LeaveRequestController extends Controller
             'message' => 'Pengajuan cuti berhasil dihapus'
         ]);
     }
+
+    public function getPendingRequests()
+    {
+        $requests = LeaveRequest::with('user')
+            ->where('status', 'Menunggu')
+            ->get();
+        return response()->json($requests);
+    }
+
+    public function approve($id)
+    {
+        $request = LeaveRequest::findOrFail($id);
+        $request->status = 'Disetujui';
+        $request->save();
+        return response()->json(['message' => 'Pengajuan cuti berhasil disetujui']);
+    }
+
+    public function reject($id)
+    {
+        $request = LeaveRequest::findOrFail($id);
+        $request->status = 'Ditolak';
+        $request->save();
+        return response()->json(['message' => 'Pengajuan cuti berhasil ditolak']);
+    }
 } 

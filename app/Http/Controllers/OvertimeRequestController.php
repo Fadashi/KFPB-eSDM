@@ -138,4 +138,28 @@ class OvertimeRequestController extends Controller
             'message' => 'Pengajuan lembur berhasil dihapus'
         ]);
     }
+
+    public function getPendingRequests()
+    {
+        $requests = OvertimeRequest::with('user')
+            ->where('status', 'Menunggu')
+            ->get();
+        return response()->json($requests);
+    }
+
+    public function approve($id)
+    {
+        $request = OvertimeRequest::findOrFail($id);
+        $request->status = 'Disetujui';
+        $request->save();
+        return response()->json(['message' => 'Pengajuan lembur berhasil disetujui']);
+    }
+
+    public function reject($id)
+    {
+        $request = OvertimeRequest::findOrFail($id);
+        $request->status = 'Ditolak';
+        $request->save();
+        return response()->json(['message' => 'Pengajuan lembur berhasil ditolak']);
+    }
 } 
