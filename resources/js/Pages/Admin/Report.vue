@@ -20,6 +20,7 @@ const isLoading = ref(false);
 const searchQuery = ref('');
 const isDropdownOpen = ref(false);
 const selectedEmployee = ref(null);
+const attendanceData = ref([]);
 
 // Computed property untuk memfilter karyawan berdasarkan pencarian
 const filteredEmployees = computed(() => {
@@ -114,7 +115,7 @@ const getSelectedEmployee = () => {
 };
 
 // Fungsi untuk download laporan absensi
-const downloadAbsensiReport = () => {
+const downloadAbsensiReport = async () => {
   const employee = getSelectedEmployee();
   
   if (!employee && selectedEmployeeId.value) {
@@ -122,173 +123,236 @@ const downloadAbsensiReport = () => {
     return;
   }
   
-  // Buat konten HTML untuk laporan
-  let reportContent = `
-    <html>
-    <head>
-      <title>Laporan Absensi Pegawai</title>
-      <style>
-        @page {
-          size: A4;
-          margin: 1.5cm 1cm;
-        }
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 0;
-          color: #333;
-          font-size: 12px;
-        }
-        .header {
-          text-align: center;
-          border-bottom: 2px solid #000;
-          padding-bottom: 10px;
-          margin-bottom: 20px;
-          position: relative;
-        }
-        .logo {
-          position: absolute;
-          top: 0;
-          left: 0;
-          height: 60px;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 16px;
-          font-weight: bold;
-          color: #1a5f7a;
-        }
-        .header h2 {
-          margin: 5px 0;
-          font-size: 14px;
-          font-weight: bold;
-          color: #2c3e50;
-        }
-        .header p {
-          margin: 3px 0;
-          font-size: 11px;
-          color: #555;
-        }
-        .info {
-          margin: 20px 0;
-        }
-        .info p {
-          margin: 5px 0;
-          font-size: 12px;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 20px 0;
-        }
-        th, td {
-          border: 1px solid #ddd;
-          padding: 8px;
-          text-align: left;
-          font-size: 11px;
-        }
-        th {
-          background-color: #f2f2f2;
-          font-weight: bold;
-        }
-        tr:nth-child(even) {
-          background-color: #f9f9f9;
-        }
-        .footer {
-          margin-top: 30px;
-          text-align: right;
-        }
-        .signature {
-          margin-top: 50px;
-        }
-        .page-footer {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          padding: 10px;
-          text-align: center;
-          font-size: 10px;
-          color: #666;
-          border-top: 1px solid #eee;
-        }
-        .page-number:before {
-          content: "Halaman " counter(page);
-        }
-      </style>
-    </head>
-    <body>
-      <!-- Header (Kop Surat) -->
-      <div class="header">
-        <img src="${logoDataUrl.value || '/images/KF_Logo.png'}" alt="Logo Kimia Farma" class="logo">
-        <h1>PT. KIMIA FARMA PLANT BANJARAN</h1>
-        <h2>LAPORAN ABSENSI PEGAWAI</h2>
-        <p>Jl. Raya Banjaran KM.16, Kab.Bandung, Jawa Barat</p>
-        <p>Web: https://sdm.e-kfpb.com Email: plant_bandung@kimiafarma.co.id</p>
-      </div>
+  if (!startDate.value || !endDate.value) {
+    alert('Silakan pilih tanggal mulai dan tanggal akhir');
+    return;
+  }
+  
+  try {
+    isLoading.value = true;
+    
+    // Ambil data absensi dari API
+    await fetchAttendanceData();
+    
+    // Buat konten HTML untuk laporan
+    let reportContent = `
+      <html>
+      <head>
+        <title>Laporan Absensi Pegawai</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 1.5cm 1cm;
+          }
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            font-size: 12px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            position: relative;
+          }
+          .logo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 60px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: bold;
+            color: #1a5f7a;
+          }
+          .header h2 {
+            margin: 5px 0;
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c3e50;
+          }
+          .header p {
+            margin: 3px 0;
+            font-size: 11px;
+            color: #555;
+          }
+          .info {
+            margin: 20px 0;
+          }
+          .info p {
+            margin: 5px 0;
+            font-size: 12px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-size: 11px;
+          }
+          th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+          }
+          tr:nth-child(even) {
+            background-color: #f9f9f9;
+          }
+          .footer {
+            margin-top: 30px;
+            text-align: right;
+          }
+          .signature {
+            margin-top: 50px;
+          }
+          .page-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #eee;
+          }
+          .page-number:before {
+            content: "Halaman " counter(page);
+          }
+        </style>
+      </head>
+      <body>
+        <!-- Header (Kop Surat) -->
+        <div class="header">
+          <img src="${logoDataUrl.value || '/images/KF_Logo.png'}" alt="Logo Kimia Farma" class="logo">
+          <h1>PT. KIMIA FARMA PLANT BANJARAN</h1>
+          <h2>LAPORAN ABSENSI PEGAWAI</h2>
+          <p>Jl. Raya Banjaran KM.16, Kab.Bandung, Jawa Barat</p>
+          <p>Web: https://sdm.e-kfpb.com Email: plant_bandung@kimiafarma.co.id</p>
+        </div>
 
-      <!-- Info Laporan -->
-      <div class="info">
-        <p>
-          <strong>Nama:</strong> ${employee ? employee.name + '-' + employee.nip : 'Semua Karyawan'}
-        </p>
-        <p>
-          <strong>Periode:</strong> ${startDate.value || 'N/A'} s/d ${endDate.value || 'N/A'}
-        </p>
-      </div>
-      
-      <!-- Tabel Laporan -->
-      <table>
-        <thead>
-          <tr>
-            <th>NO</th>
-            <th>SHIFT</th>
-            <th>TANGGAL</th>
-            <th>CHECK IN</th>
-            <th>CHECK OUT</th>
-            <th>LEMBUR</th>
-            <th>KETERANGAN</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Data absensi akan ditampilkan di sini -->
-          <tr>
-            <td colspan="7" style="text-align: center;">Data absensi akan ditampilkan berdasarkan filter yang dipilih.</td>
-          </tr>
-        </tbody>
-      </table>
-      
-      <!-- Footer dengan tanda tangan -->
-      <div class="footer">
-        <p>Bandung, ${formatDate(new Date().toISOString())}</p>
-        <p>Bagian SDM</p>
-        <div class="signature"></div>
-        <p>(.............................)</p>
-      </div>
-      
-      <!-- Footer di setiap halaman -->
-      <div class="page-footer">
-        <div>Sistem ESDM Kimia Farma Plant Banjaran 2.0</div>
-        <div class="page-number"></div>
-      </div>
-    </body>
-    </html>
-  `;
+        <!-- Info Laporan -->
+        <div class="info">
+          <p>
+            <strong>Nama:</strong> ${employee ? employee.name + ' - ' + employee.nip : 'Semua Karyawan'}
+          </p>
+          <p>
+            <strong>Periode:</strong> ${formatDate(startDate.value)} s/d ${formatDate(endDate.value)}
+          </p>
+        </div>
+        
+        <!-- Tabel Laporan -->
+        <table>
+          <thead>
+            <tr>
+              <th>NO</th>
+              <th>SHIFT</th>
+              <th>TANGGAL</th>
+              <th>CHECK IN</th>
+              <th>CHECK OUT</th>
+              <th>LEMBUR</th>
+              <th>KETERANGAN</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${generateTableRows()}
+          </tbody>
+        </table>
+        
+        <!-- Footer dengan tanda tangan -->
+        <div class="footer">
+          <p>Bandung, ${formatDate(new Date().toISOString().split('T')[0])}</p>
+          <p>Bagian SDM</p>
+          <div class="signature"></div>
+          <p>(.............................)</p>
+        </div>
+        
+        <!-- Footer di setiap halaman -->
+        <div class="page-footer">
+          <div>Sistem ESDM Kimia Farma Plant Banjaran 2.0</div>
+          <div class="page-number"></div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Buat blob dan buka di tab baru untuk PDF
+    const blob = new Blob([reportContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const reportWindow = window.open(url, '_blank');
+    
+    // Trigger print dialog untuk save as PDF
+    reportWindow.onload = () => {
+      setTimeout(() => {
+        reportWindow.print();
+      }, 1000);
+    };
+    
+    // Tutup modal
+    closeAbsensiModal();
+  } catch (error) {
+    console.error('Error saat menghasilkan laporan:', error);
+    alert('Terjadi kesalahan saat menghasilkan laporan. Silakan coba lagi.');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Fungsi untuk mengambil data absensi
+const fetchAttendanceData = async () => {
+  try {
+    const response = await axios.get('/api/attendance-report', {
+      params: {
+        employee_id: selectedEmployeeId.value,
+        start_date: startDate.value,
+        end_date: endDate.value
+      }
+    });
+    
+    console.log('API response:', response.data); // Tambahkan untuk debug
+    
+    if (response.data.status === 'success') {
+      attendanceData.value = response.data.attendance || [];
+      return attendanceData.value;
+    } else {
+      throw new Error(response.data.message || 'Terjadi kesalahan saat mengambil data');
+    }
+  } catch (error) {
+    console.error('Error mengambil data absensi:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk menghasilkan baris-baris tabel data absensi
+const generateTableRows = () => {
+  if (attendanceData.value.length === 0) {
+    return '<tr><td colspan="7" style="text-align: center;">Tidak ada data absensi untuk periode yang dipilih.</td></tr>';
+  }
   
-  // Buat blob dan buka di tab baru untuk PDF
-  const blob = new Blob([reportContent], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const reportWindow = window.open(url, '_blank');
-  
-  // Trigger print dialog untuk save as PDF
-  reportWindow.onload = () => {
-    setTimeout(() => {
-      reportWindow.print();
-    }, 1000);
-  };
-  
-  // Tutup modal
-  closeAbsensiModal();
+  return attendanceData.value.map((item, index) => {
+    // Format tanggal dari YYYY-MM-DD ke format yang sesuai
+    const formattedDate = formatDate(item.date);
+    
+    return `
+      <tr>
+        <td style="text-align: center;">${index + 1}</td>
+        <td>${item.shift || '-'}</td>
+        <td>${formattedDate}</td>
+        <td>${item.check_in || '-'}</td>
+        <td>${item.check_out || '-'}</td>
+        <td>${item.overtime_hours || '-'}</td>
+        <td>${item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : '-'}</td>
+      </tr>
+    `;
+  }).join('');
 };
 
 </script>
@@ -456,10 +520,17 @@ const downloadAbsensiReport = () => {
                         </button>
                         <button 
                             @click="downloadAbsensiReport"
-                            class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
-                            :disabled="isLoading || (!selectedEmployeeId)"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 flex items-center justify-center"
+                            :disabled="isLoading || (!selectedEmployeeId && !startDate && !endDate)"
                         >
-                            Download PDF
+                            <span v-if="isLoading">
+                                <i class="fas fa-spinner fa-spin mr-2"></i>
+                                Memproses...
+                            </span>
+                            <span v-else>
+                                <i class="fas fa-download mr-2"></i>
+                                Download PDF
+                            </span>
                         </button>
                     </div>
                 </div>
