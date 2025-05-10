@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
 const divisions = ref([
@@ -32,122 +33,148 @@ const divisions = ref([
 
 const selectedDivision = ref(null)
 const showModal = ref(false)
-const modalMode = ref('add') // 'add' atau 'edit'
-const formData = ref({
-  id: null,
-  name: '',
-  position: '',
-  email: '',
-})
+const modalMode = ref('add')
+const formData = ref({ id: null, name: '', position: '', email: '' })
 
 const showConfirmModal = ref(false)
 const employeeToDelete = ref(null)
 
-const selectDivision = (division) => {
-  selectedDivision.value = division
-}
+const searchQuery = ref('')
 
+const filteredEmployees = computed(() => {
+  if (!selectedDivision.value) return []
+  if (!searchQuery.value) return selectedDivision.value.employees
+
+  const query = searchQuery.value.toLowerCase()
+  return selectedDivision.value.employees.filter(employee =>
+    employee.name.toLowerCase().includes(query) ||
+    employee.position.toLowerCase().includes(query) ||
+    employee.email.toLowerCase().includes(query)
+  )
+})
+
+const selectDivision = (division) => selectedDivision.value = division
 const openAddModal = () => {
   modalMode.value = 'add'
-  formData.value = {
-    id: null,
-    name: '',
-    position: '',
-    email: '',
-  }
+  formData.value = { id: null, name: '', position: '', email: '' }
   showModal.value = true
 }
-
 const openEditModal = (employee) => {
   modalMode.value = 'edit'
   formData.value = { ...employee }
   showModal.value = true
 }
-
 const deleteEmployee = (employeeId) => {
   employeeToDelete.value = employeeId
   showConfirmModal.value = true
 }
-
 const confirmDelete = () => {
-  selectedDivision.value.employees = selectedDivision.value.employees.filter(
-    (emp) => emp.id !== employeeToDelete.value,
-  )
+  selectedDivision.value.employees = selectedDivision.value.employees.filter(emp => emp.id !== employeeToDelete.value)
   showConfirmModal.value = false
   employeeToDelete.value = null
 }
-
 const handleSubmit = () => {
   if (modalMode.value === 'add') {
-    const newEmployee = {
-      ...formData.value,
-      id: Date.now(), // ID sederhana untuk contoh
-    }
+    const newEmployee = { ...formData.value, id: Date.now() }
     selectedDivision.value.employees.push(newEmployee)
   } else {
-    const index = selectedDivision.value.employees.findIndex((emp) => emp.id === formData.value.id)
-    if (index !== -1) {
-      selectedDivision.value.employees[index] = { ...formData.value }
-    }
+    const index = selectedDivision.value.employees.findIndex(emp => emp.id === formData.value.id)
+    if (index !== -1) selectedDivision.value.employees[index] = { ...formData.value }
   }
   showModal.value = false
 }
 </script>
 
 <template>
-    <Head title="Admin Employees"/>
+  <Head title="Admin Employees"/>
 
   <AuthenticatedLayout>
     <template #header>
-      <h1 class="text-xl font-semibold text-gray-900">Daftar Karyawan</h1>
-    </template>
+            <!-- Breadcrumbs -->
+            <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
+                <ol class="list-none p-0 inline-flex">
+                    <li class="flex items-center">
+                        <i class="fas fa-home text-blue-600 mr-1"></i>
+                        <a href="/admin/dashboard" class="text-blue-600 hover:text-blue-800 font-semibold">Dashboard</a>
+                        <svg class="w-4 h-4 mx-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                        </svg>
+                    </li>
+                    <li class="flex items-center text-gray-700 font-semibold">
+                        Karyawan
+                    </li>
+                </ol>
+            </nav>
+            <div class="flex items-center justify-between">
+                <h1 class="text-xl font-semibold text-gray-900">Karyawan</h1>
+            </div>
+        </template>
 
-    <div class="flex gap-6">
-      <!-- Daftar Divisi -->
+    <div class="flex gap-6 mt-6">
+      <!-- Divisi -->
       <div class="w-1/4 bg-white p-4 rounded-lg shadow">
-        <h2 class="font-semibold text-lg">Divisi</h2>
+        <h2 class="font-semibold text-lg mb-2">Divisi</h2>
         <div
           v-for="division in divisions"
           :key="division.id"
-          class="p-3 cursor-pointer rounded-lg hover:bg-gray-100 transition duration-200"
-          :class="{ 'bg-blue-600 text-white': selectedDivision?.id === division.id }"
+          class="p-3 cursor-pointer rounded-lg transition duration-200 flex items-center justify-between"
+          :class="{ 'bg-blue-600 text-white': selectedDivision?.id === division.id, 'hover:bg-gray-100': selectedDivision?.id !== division.id }"
           @click="selectDivision(division)"
         >
           <span class="flex items-center">
             <i class="fas fa-building mr-2"></i>
-            {{ division.name }} ({{ division.employees.length }})
+            {{ division.name }}
+          </span>
+          <span class="bg-black/10 px-2 py-0.5 text-xs rounded-full" :class="{ 'bg-white/20 text-white': selectedDivision?.id === division.id }">
+            {{ division.employees.length }}
           </span>
         </div>
       </div>
 
-      <!-- Daftar Karyawan -->
+      <!-- Karyawan -->
       <div class="flex-1 bg-white p-6 rounded-lg shadow">
         <div v-if="selectedDivision">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold">{{ selectedDivision.name }}</h2>
-            <button class="bg-blue-600 text-white px-4 py-2 rounded flex items-center" @click="openAddModal">
-              <i class="fas fa-plus mr-2"></i> Tambah Karyawan
-            </button>
+            <div class="flex items-center gap-4">
+              <div class="relative">
+                <input
+                  type="text"
+                  v-model="searchQuery"
+                  placeholder="Cari karyawan..."
+                  class="pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <i class="fas fa-search absolute right-3 top-2.5 text-gray-400"></i>
+              </div>
+              <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center" @click="openAddModal">
+                <i class="fas fa-plus mr-2"></i> Tambah Karyawan
+              </button>
+            </div>
           </div>
-          <table class="w-full border-collapse">
-            <thead>
-              <tr class="bg-gray-100">
-                <th class="p-2 text-left">Nama</th>
-                <th class="p-2 text-left">Posisi</th>
-                <th class="p-2 text-left">Email</th>
-                <th class="p-2">Aksi</th>
+
+          <table class="w-full text-sm text-left border-collapse">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="p-2">Nama</th>
+                <th class="p-2">Posisi</th>
+                <th class="p-2">Email</th>
+                <th class="p-2 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="employee in selectedDivision.employees" :key="employee.id" class="border-b hover:bg-gray-50 transition duration-200">
+              <tr
+                v-for="employee in filteredEmployees"
+                :key="employee.id"
+                class="border-b hover:bg-gray-50 transition duration-200"
+              >
                 <td class="p-2">{{ employee.name }}</td>
                 <td class="p-2">{{ employee.position }}</td>
                 <td class="p-2">{{ employee.email }}</td>
-                <td class="p-2 flex gap-2">
-                  <button class="text-blue-500 flex items-center" @click="openEditModal(employee)">
+                <td class="p-2 text-center">
+                  <button class="text-blue-600 hover:underline mr-2" @click="openEditModal(employee)">
                     <i class="fas fa-edit mr-1"></i> Edit
                   </button>
-                  <button class="text-red-500 flex items-center" @click="deleteEmployee(employee.id)">
+                  <button class="text-red-600 hover:underline" @click="deleteEmployee(employee.id)">
                     <i class="fas fa-trash mr-1"></i> Hapus
                   </button>
                 </td>
@@ -162,204 +189,3 @@ const handleSubmit = () => {
     </div>
   </AuthenticatedLayout>
 </template>
-
-<style scoped>
-.employees-page {
-  padding: 20px;
-}
-
-.content-layout {
-  display: flex;
-  gap: 30px;
-  margin-top: 20px;
-}
-
-.divisions-list {
-  width: 300px;
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.division-item {
-  display: flex;
-  align-items: center;
-  padding: 15px;
-  margin: 5px 0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.division-item:hover {
-  background: #f5f5f5;
-}
-
-.division-item.active {
-  background: #1a237e;
-  color: white;
-}
-
-.division-item i {
-  margin-right: 10px;
-}
-
-.employee-count {
-  margin-left: auto;
-  background: rgba(0, 0, 0, 0.1);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.9em;
-}
-
-.employees-list {
-  flex: 1;
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-th,
-td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-}
-
-.header-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.add-btn {
-  background: #1a237e;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.action-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 5px 10px;
-}
-
-.action-btn.edit {
-  color: #2196f3;
-}
-
-.action-btn.delete {
-  color: #f44336;
-}
-
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.modal-content {
-  background: white;
-  padding: 30px;
-  border-radius: 10px;
-  width: 500px;
-  max-width: 90%;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.form-actions button {
-  padding: 8px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.submit-btn {
-  background: #1a237e;
-  color: white;
-  border: none;
-}
-
-button:hover {
-  opacity: 0.9;
-}
-
-.no-selection {
-  text-align: center;
-  padding: 50px;
-  color: #666;
-}
-
-.no-selection i {
-  font-size: 3em;
-  margin-bottom: 20px;
-  color: #1a237e;
-}
-
-.confirmation-modal {
-  max-width: 400px;
-  text-align: center;
-}
-
-.confirmation-modal p {
-  margin: 20px 0;
-  color: #666;
-}
-
-.delete-btn {
-  background: #f44336;
-  color: white;
-  border: none;
-  padding: 8px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.delete-btn:hover {
-  background: #d32f2f;
-}
-</style>

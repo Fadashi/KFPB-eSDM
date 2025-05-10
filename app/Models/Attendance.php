@@ -17,13 +17,15 @@ class Attendance extends Model
         'status',
         'latitude',
         'longitude',
-        'photo'
+        'shift',
+        'is_late'
     ];
 
     protected $casts = [
         'date' => 'date',
         'check_in' => 'datetime',
         'check_out' => 'datetime',
+        'is_late' => 'boolean'
     ];
 
     public function user()

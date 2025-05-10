@@ -11,9 +11,9 @@ const showNotifications = ref(false)
 
 // Contoh daftar notifikasi
 const notificationsList = ref([
-  { id: 1, text: 'Pesanan Anda telah dikonfirmasi', link: '#' },
-  { id: 2, text: 'Promo spesial hari ini! Cek sekarang.', link: '#' },
-  { id: 3, text: 'Peringatan: Saldo dompet digital Anda menipis.', link: '#' },
+  { id: 1, text: 'Acara Tabligh Akbar', link: '#' },
+  { id: 2, text: 'Jadwal Libur 2025', link: '#' },
+  { id: 3, text: 'Pengumuman Gajian', link: '#' },
 ])
 </script>
 

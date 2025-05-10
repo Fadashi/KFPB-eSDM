@@ -32,6 +32,7 @@ class AttendanceController extends Controller
         $presentDays = $monthlyAttendance->where('status', 'Hadir')->count();
         $lateDays = $monthlyAttendance->where('status', 'Terlambat')->count();
         $leaveDays = $monthlyAttendance->where('status', 'Cuti')->count();
+        $remainingDays = $totalDays - ($presentDays + $lateDays + $leaveDays);
 
         return response()->json([
             'today' => $todayAttendance,
@@ -40,108 +41,179 @@ class AttendanceController extends Controller
                 'total_days' => $totalDays,
                 'present_days' => $presentDays,
                 'late_days' => $lateDays,
-                'leave_days' => $leaveDays
+                'leave_days' => $leaveDays,
+                'remaining_days' => $remainingDays
             ]
         ]);
     }
 
     public function checkIn(Request $request)
     {
-        $request->validate([
-            'latitude' => 'required|numeric',
-            'longitude' => 'required|numeric',
-            'photo' => 'required|string'
-        ]);
+        try {
+            $request->validate([
+                'latitude' => 'required|numeric',
+                'longitude' => 'required|numeric',
+                'shift' => 'required|string'
+            ]);
 
-        $user = Auth::user();
-        $today = now()->format('Y-m-d');
-        $currentTime = now()->format('H:i:s');
+            $user = Auth::user();
+            $today = now()->setTimezone('Asia/Jakarta');
+            $currentTime = $today->format('H:i:s');
 
-        // Cek apakah sudah absen hari ini
-        $existingAttendance = Attendance::where('user_id', $user->id)
-            ->whereDate('date', $today)
-            ->first();
+            \Log::info('Check in attempt', [
+                'user_id' => $user->id,
+                'date' => $today->format('Y-m-d'),
+                'time' => $currentTime,
+                'location' => [
+                    'latitude' => $request->latitude,
+                    'longitude' => $request->longitude
+                ]
+            ]);
 
-        if ($existingAttendance) {
+            // Cek apakah sudah check in hari ini
+            $existingAttendance = Attendance::where('user_id', $user->id)
+                ->whereDate('date', $today->format('Y-m-d'))
+                ->first();
+
+            if ($existingAttendance) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda sudah melakukan check in hari ini'
+                ], 400);
+            }
+
+            // Tentukan status berdasarkan waktu
+            $status = 'Hadir';
+            if ($currentTime > '08:00:00') {
+                $status = 'Terlambat';
+            }
+
+            $attendance = Attendance::create([
+                'user_id' => $user->id,
+                'date' => $today->format('Y-m-d'),
+                'check_in' => $currentTime,
+                'status' => $status,
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'shift' => $request->shift
+            ]);
+
             return response()->json([
-                'message' => 'Anda sudah melakukan absensi hari ini'
-            ], 400);
+                'success' => true,
+                'message' => 'Check in berhasil',
+                'data' => $attendance
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Check in error', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat check in: ' . $e->getMessage()
+            ], 500);
         }
+    }
 
-        // Simpan foto
-        $photoPath = $this->savePhoto($request->photo);
-
-        // Tentukan status (terlambat jika check in setelah 08:00)
-        $status = $currentTime > '08:00:00' ? 'Terlambat' : 'Hadir';
-
-        // Buat record absensi
-        $attendance = Attendance::create([
-            'user_id' => $user->id,
-            'date' => $today,
-            'check_in' => $currentTime,
-            'status' => $status,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'photo' => $photoPath
-        ]);
-
-        return response()->json([
-            'message' => 'Absensi berhasil',
-            'data' => $attendance
-        ]);
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2) {
+        $R = 6371; // Radius bumi dalam kilometer
+        $dLat = ($lat2 - $lat1) * M_PI / 180;
+        $dLon = ($lon2 - $lon1) * M_PI / 180;
+        $a = sin($dLat/2) * sin($dLat/2) +
+             cos($lat1 * M_PI / 180) * cos($lat2 * M_PI / 180) *
+             sin($dLon/2) * sin($dLon/2);
+        $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+        return $R * $c;
     }
 
     public function checkOut(Request $request)
     {
-        $request->validate([
-            'latitude' => 'required|numeric',
-            'longitude' => 'required|numeric',
-            'photo' => 'required|string'
-        ]);
+        try {
+            $request->validate([
+                'latitude' => 'required|numeric',
+                'longitude' => 'required|numeric'
+            ]);
 
-        $user = Auth::user();
-        $today = now()->format('Y-m-d');
-        $currentTime = now()->format('H:i:s');
+            $user = Auth::user();
+            $today = now()->setTimezone('Asia/Jakarta');
+            $currentTime = $today->format('H:i:s');
 
-        // Cari absensi hari ini
-        $attendance = Attendance::where('user_id', $user->id)
-            ->whereDate('date', $today)
-            ->first();
+            \Log::info('Check out attempt', [
+                'user_id' => $user->id,
+                'date' => $today->format('Y-m-d'),
+                'time' => $currentTime,
+                'location' => [
+                    'latitude' => $request->latitude,
+                    'longitude' => $request->longitude
+                ]
+            ]);
 
-        if (!$attendance) {
+            // Cari absensi hari ini
+            $attendance = Attendance::where('user_id', $user->id)
+                ->whereDate('date', $today->format('Y-m-d'))
+                ->first();
+
+            if (!$attendance) {
+                \Log::warning('No check-in found for today', [
+                    'user_id' => $user->id,
+                    'date' => $today->format('Y-m-d')
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda belum melakukan absensi masuk hari ini'
+                ], 400);
+            }
+
+            if ($attendance->check_out) {
+                \Log::warning('Already checked out today', [
+                    'user_id' => $user->id,
+                    'date' => $today->format('Y-m-d'),
+                    'check_out' => $attendance->check_out
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda sudah melakukan absensi pulang hari ini'
+                ], 400);
+            }
+
+            // Update absensi
+            $attendance->update([
+                'check_out' => $currentTime,
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'status' => 'Sudah Absen'
+            ]);
+
+            \Log::info('Check out successful', [
+                'user_id' => $user->id,
+                'date' => $today->format('Y-m-d'),
+                'check_out' => $currentTime
+            ]);
+
+            // Ambil data terbaru
+            $updatedData = $this->index()->getData();
+
             return response()->json([
-                'message' => 'Anda belum melakukan absensi masuk hari ini'
-            ], 400);
-        }
+                'success' => true,
+                'message' => 'Absensi pulang berhasil',
+                'data' => $attendance,
+                'monthly' => $updatedData->monthly,
+                'statistics' => $updatedData->statistics
+            ]);
 
-        if ($attendance->check_out) {
+        } catch (\Exception $e) {
+            \Log::error('Check out error', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
-                'message' => 'Anda sudah melakukan absensi pulang hari ini'
-            ], 400);
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat melakukan absensi pulang: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Simpan foto
-        $photoPath = $this->savePhoto($request->photo);
-
-        // Update absensi
-        $attendance->update([
-            'check_out' => $currentTime,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'photo' => $photoPath
-        ]);
-
-        return response()->json([
-            'message' => 'Absensi pulang berhasil',
-            'data' => $attendance
-        ]);
-    }
-
-    private function savePhoto($base64Photo)
-    {
-        $image = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Photo));
-        $filename = 'attendance_' . time() . '.jpg';
-        Storage::disk('public')->put('attendance/' . $filename, $image);
-        return 'attendance/' . $filename;
     }
 } 

@@ -9,8 +9,14 @@ const menuItems = computed(() => {
     case 'admin':
       return [
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
+        { icon: 'fas fa-database', text: 'Referensi', route: 'admin.references' },
         { icon: 'fas fa-users', text: 'Karyawan', route: 'admin.employees' },
-        { icon: 'fas fa-cog', text: 'Pengaturan', route: 'dashboard' },
+        { icon: 'fas fa-clock', text: 'Absensi', route: 'admin.attendance' },
+        { icon: 'fas fa-file', text: 'Laporan', route: 'admin.report' },
+        { icon: 'fas fa-bullhorn', text: 'Pengumuman', route: 'admin.announcement' },
+        { icon: 'fas fa-user', text: 'User Management', route: 'admin.users' },
+        { icon: 'fas fa-book', text: 'Audit Trail', route: 'admin.audit-trail' },
+        { icon: 'fas fa-cog', text: 'Pengaturan', route: 'admin.settings' },
       ]
     case 'atasan':
       return [
@@ -22,8 +28,10 @@ const menuItems = computed(() => {
     case 'pegawai':
       return [
         { icon: 'fas fa-tachometer-alt', text: 'Dashboard', route: 'dashboard' },
+        { icon: 'fas fa-user', text: 'Profil', route: 'pegawai.profile' },
         { icon: 'fas fa-user-clock', text: 'Absensi', route: 'pegawai.attendance' },
-        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Cuti', route: '#' },
+        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Cuti', route: 'pegawai.cuti' },
+        { icon: 'fas fa-calendar-alt', text: 'Pengajuan Lembur', route: '#' },
         { icon: 'fas fa-history', text: 'Riwayat', route: '#' },
       ]
     default:

@@ -4,7 +4,7 @@ import '../css/app.css';
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import { ZiggyVue } from 'ziggy-js';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -25,3 +25,11 @@ createInertiaApp({
         color: '#4B5563',
     },
 });
+
+// Tambahkan fungsi initMap global
+window.initMap = function() {
+    console.log('Google Maps API loaded');
+    // Fungsi ini akan dipanggil oleh Google Maps API
+    // Komponen yang membutuhkan peta akan menunggu event ini
+    window.dispatchEvent(new Event('google-maps-loaded'));
+};
