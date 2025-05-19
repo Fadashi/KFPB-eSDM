@@ -35,21 +35,38 @@ class EmployeeController extends Controller
         // Ambil semua bagian
         $departments = RefBagian::all();
         
-        // Ambil semua karyawan dengan relasi yang dibutuhkan
+        // Ambil semua karyawan dengan relasi yang dibutuhkan - ubah urutan eager loading untuk subDepartment
         $employees = Employee::with([
-            'user',
+            'subDepartment', // Pindahkan ke paling atas agar diprioritaskan
             'department',
+            'employeeType',
+            'functionalPosition',
+            'structuralPosition',
             'position',
+            'user',
             'province',
             'city',
             'district',
             'bank',
             'religion',
-            'employeeType',
-            'functionalPosition',
-            'structuralPosition',
             'eselon',
         ])->get();
+        
+        // Debug: memastikan relasi sub bagian terhubung dengan benar
+        foreach ($employees as $employee) {
+            if ($employee->sub_department_id) {
+                // Gunakan firstOrFind untuk memastikan data ditemukan
+                $subDept = RefSubBagian::where('id', $employee->sub_department_id)->first();
+                if ($subDept) {
+                    // Manual attach jika relasi tidak terbaca dengan benar
+                    $employee->debug_subbagian = $subDept->subbagian;
+                    // Pastikan subDepartment terbaca dengan benar
+                    if (!$employee->subDepartment) {
+                        $employee->setAttribute('subDepartment', $subDept);
+                    }
+                }
+            }
+        }
         
         // Kelompokkan karyawan berdasarkan bagian
         $employeesByDepartment = [];
@@ -150,6 +167,32 @@ class EmployeeController extends Controller
             return response()->json(['districts' => $districts]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Gagal mengambil data kecamatan: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Mengambil daftar karyawan untuk dropdown
+     */
+    public function getEmployees()
+    {
+        try {
+            $employees = Employee::with(['department', 'subDepartment'])
+                ->where('status', 'Aktif')
+                ->orderBy('name')
+                ->get()
+                ->map(function($employee) {
+                    return [
+                        'id' => $employee->id,
+                        'name' => $employee->name,
+                        'nip' => $employee->nip,
+                        'department_name' => $employee->department ? $employee->department->bagian : null,
+                        'sub_department_name' => $employee->subDepartment ? $employee->subDepartment->subbagian : null
+                    ];
+                });
+            
+            return response()->json(['employees' => $employees]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Gagal mengambil data karyawan: ' . $e->getMessage()], 500);
         }
     }
 
@@ -551,6 +594,57 @@ class EmployeeController extends Controller
             DB::rollBack();
             
             return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Debugging dan refresh data sub bagian
+     */
+    public function refreshSubDepartments()
+    {
+        try {
+            // Ambil semua karyawan
+            $employees = Employee::all();
+            $updatedCount = 0;
+            $problems = [];
+
+            foreach ($employees as $employee) {
+                if ($employee->sub_department_id) {
+                    // Cari data sub bagian
+                    $subDept = RefSubBagian::find($employee->sub_department_id);
+                    
+                    if ($subDept) {
+                        // Tambahkan log debug
+                        $data = [
+                            'employee_id' => $employee->id,
+                            'employee_name' => $employee->name,
+                            'sub_department_id' => $employee->sub_department_id,
+                            'sub_department_name' => $subDept->subbagian
+                        ];
+                        
+                        $updatedCount++;
+                    } else {
+                        // Catat karyawan dengan ID sub bagian tidak valid
+                        $problems[] = [
+                            'employee_id' => $employee->id,
+                            'employee_name' => $employee->name,
+                            'sub_department_id' => $employee->sub_department_id,
+                            'error' => 'Sub Bagian tidak ditemukan'
+                        ];
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Refresh selesai. $updatedCount data diperbarui.",
+                'problems' => $problems
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
         }
     }
 } 

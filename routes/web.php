@@ -104,6 +104,9 @@ Route::middleware(['auth'])->group(function () {
     // API untuk dropdown dinamis
     Route::get('/api/provinces/{id}/cities', [EmployeeController::class, 'getCities'])->name('api.cities');
     Route::get('/api/cities/{id}/districts', [EmployeeController::class, 'getDistricts'])->name('api.districts');
+    Route::get('/api/employees', [EmployeeController::class, 'getEmployees'])->name('api.employees');
+    Route::get('/api/attendance-report', [App\Http\Controllers\Admin\AttendanceController::class, 'getAttendanceReport'])->name('api.attendance-report');
+    Route::get('/api/refresh-sub-departments', [EmployeeController::class, 'refreshSubDepartments'])->middleware('checkRole:admin')->name('api.refresh-sub-departments');
 
     //Laporan
     Route::get('/admin/report', function () {
