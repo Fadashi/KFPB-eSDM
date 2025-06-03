@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
 // Menerima data dari controller
@@ -50,13 +50,29 @@ const filteredEmployees = computed(() => {
   if (!searchQuery.value) return selectedDivision.value.employees;
 
   const query = searchQuery.value.toLowerCase();
-  return selectedDivision.value.employees.filter(employee => 
-    employee.name?.toLowerCase().includes(query) ||
-    employee.nip?.toLowerCase().includes(query) ||
-    employee.functionalPosition?.jabatan_fungsional?.toLowerCase().includes(query) || 
-    employee.subDepartment?.subbagian?.toLowerCase().includes(query) ||
-    employee.employeeType?.status_pegawai?.toLowerCase().includes(query)
-  );
+  return selectedDivision.value.employees.filter(employee => {
+    // NIP dan Nama
+    const nip = employee.nip?.toLowerCase() || '';
+    const name = employee.name?.toLowerCase() || '';
+    // Jabatan (fungsional, struktural, posisi)
+    const jabatanFungsional = employee.functional_position?.jabatan_fungsional?.toLowerCase() || employee.functionalPosition?.jabatan_fungsional?.toLowerCase() || '';
+    const jabatanStruktural = employee.structural_position?.jabatan_struktural?.toLowerCase() || employee.structuralPosition?.jabatan_struktural?.toLowerCase() || '';
+    const jabatanLain = employee.position?.jabatan?.toLowerCase() || '';
+    // Sub Bagian
+    const subBagian = employee.subDepartmentName?.toLowerCase() || employee.subDepartment?.subbagian?.toLowerCase() || employee.sub_department?.subbagian?.toLowerCase() || employee.debug_subbagian?.toLowerCase() || '';
+    // Jenis Pegawai
+    const jenisPegawai = employee.employee_type?.status_pegawai?.toLowerCase() || employee.employeeType?.status_pegawai?.toLowerCase() || '';
+    // Cek semua kemungkinan
+    return (
+      nip.includes(query) ||
+      name.includes(query) ||
+      jabatanFungsional.includes(query) ||
+      jabatanStruktural.includes(query) ||
+      jabatanLain.includes(query) ||
+      subBagian.includes(query) ||
+      jenisPegawai.includes(query)
+    );
+  });
 });
 
 const selectDivision = (division) => {
@@ -114,6 +130,22 @@ onMounted(() => {
     }
   }
 });
+
+const showImportModal = ref(false);
+const importForm = useForm({ file: null });
+
+const downloadTemplate = () => {
+  window.location.href = route('admin.employees.template');
+};
+
+const submitImport = () => {
+  importForm.post(route('admin.employees.import'), {
+    onSuccess: () => {
+      showImportModal.value = false;
+      importForm.reset();
+    }
+  });
+};
 </script>
 
 <template>
@@ -142,6 +174,34 @@ onMounted(() => {
       </div>
     </template>
 
+    <div v-if="$page.props.flash && $page.props.flash.message" :class="{
+      'bg-green-100 text-green-800': $page.props.flash?.type === 'success',
+      'bg-red-100 text-red-800': $page.props.flash?.type === 'error'
+    }" class="p-3 rounded mb-4">
+      {{ $page.props.flash.message }}
+    </div>
+
+    <div class="flex gap-2 mb-4">
+      <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center" @click="showImportModal = true">
+        <i class="fas fa-upload mr-2"></i> Unggah Massal
+      </button>
+      <a :href="route('admin.employees.export')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center">
+        <i class="fas fa-file-excel mr-2"></i> Export Excel
+      </a>
+      <div class="relative">
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="Cari karyawan..."
+          class="pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <i class="fas fa-search absolute right-3 top-2.5 text-gray-400"></i>
+      </div>
+      <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center" @click="openAddModal">
+        <i class="fas fa-plus mr-2"></i> Tambah Karyawan
+      </button>
+    </div>
+
     <div class="flex gap-6 mt-6">
       <!-- Bagian -->
       <div class="w-1/4 bg-white p-4 rounded-lg shadow">
@@ -168,23 +228,7 @@ onMounted(() => {
         <div v-if="selectedDivision">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold">{{ selectedDivision.name }}</h2>
-            <div class="flex items-center gap-4">
-              <div class="relative">
-                <input
-                  type="text"
-                  v-model="searchQuery"
-                  placeholder="Cari karyawan..."
-                  class="pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <i class="fas fa-search absolute right-3 top-2.5 text-gray-400"></i>
-              </div>
-              <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center" @click="openAddModal">
-                <i class="fas fa-plus mr-2"></i> Tambah Karyawan
-              </button>
-            </div>
           </div>
-
-          <!-- Tambahkan tombol refresh data sub bagian -->
 
           <table class="w-full text-sm text-left border-collapse">
             <thead class="bg-gray-100">
@@ -301,4 +345,34 @@ onMounted(() => {
       </div>
     </div>
   </AuthenticatedLayout>
+
+  <!-- Modal Import -->
+  <div v-if="showImportModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
+      <h2 class="text-lg font-semibold mb-4">Unggah Data Karyawan (Excel)</h2>
+      <div class="flex flex-col gap-3">
+        <button @click="downloadTemplate" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded flex items-center">
+          <i class="fas fa-download mr-2"></i> Download Template
+        </button>
+        <form @submit.prevent="submitImport" enctype="multipart/form-data">
+          <input
+            type="file"
+            id="import-file"
+            name="file"
+            @change="e => importForm.file = e.target.files[0]"
+            accept=".xls,.xlsx"
+            class="mb-2"
+            required
+          >
+          <div class="flex gap-2 mt-2">
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded" :disabled="importForm.processing">
+              <i class="fas fa-upload mr-2"></i> Unggah File
+            </button>
+            <button type="button" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded" @click="showImportModal = false">Batal</button>
+          </div>
+        </form>
+        <div v-if="importForm.errors.file" class="text-red-600 text-sm mt-2">{{ importForm.errors.file }}</div>
+      </div>
+    </div>
+  </div>
 </template> 

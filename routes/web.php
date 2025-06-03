@@ -20,6 +20,7 @@ use App\Http\Controllers\AuditTrailController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\OvertimeRequestController;
+use App\Http\Controllers\Admin\EmployeeImportExportController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -96,6 +97,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/employees', [EmployeeController::class, 'index'])->middleware('checkRole:admin')->name('admin.employees');
     Route::get('/admin/employees/create', [EmployeeController::class, 'create'])->middleware('checkRole:admin')->name('admin.employees.create');
     Route::post('/admin/employees/store', [EmployeeController::class, 'store'])->middleware('checkRole:admin')->name('admin.employees.store');
+    Route::get('/admin/employees/template', [EmployeeImportExportController::class, 'template'])->name('employees.template');
+    Route::get('/admin/employees/export', [EmployeeImportExportController::class, 'export'])->name('employees.export');
+    Route::post('/admin/employees/import', [EmployeeImportExportController::class, 'import'])->name('employees.import');
     Route::get('/admin/employees/{id}', [EmployeeController::class, 'show'])->middleware('checkRole:admin')->name('admin.employees.show');
     Route::get('/admin/employees/{id}/edit', [EmployeeController::class, 'edit'])->middleware('checkRole:admin')->name('admin.employees.edit');
     Route::put('/admin/employees/{id}', [EmployeeController::class, 'update'])->middleware('checkRole:admin')->name('admin.employees.update');
@@ -258,4 +262,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users');
     Route::get('/attendance', [App\Http\Controllers\Admin\AttendanceController::class, 'index'])->name('attendance');
+    Route::get('employees/export', [EmployeeImportExportController::class, 'export'])->name('employees.export');
+    Route::get('employees/template', [EmployeeImportExportController::class, 'template'])->name('employees.template');
+    Route::post('employees/import', [EmployeeImportExportController::class, 'import'])->name('employees.import');
+    Route::get('employees/{id}', [EmployeeController::class, 'show'])->name('employees.show');
 });
